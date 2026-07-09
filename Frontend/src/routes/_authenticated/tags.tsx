@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/tags")({
   component: TagsPage,
-  head: () => ({ meta: [{ title: "Tags — TodoFlow" }] }),
+  head: () => ({ meta: [{ title: "Nhãn — TodoFlow" }] }),
 });
 
 function TagsPage() {
@@ -32,32 +32,32 @@ function TagsPage() {
     try {
       await addTag(clean);
       setName("");
-      toast.success("Đã thêm tag");
+      toast.success("Đã thêm nhãn");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không thêm được tag");
+      toast.error(error instanceof Error ? error.message : "Không thêm được nhãn");
     }
   };
 
   const removeTag = async (id: string) => {
     try {
       await deleteTag(id);
-      toast.success("Đã xoá tag");
+      toast.success("Đã xoá nhãn");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không xoá được tag");
+      toast.error(error instanceof Error ? error.message : "Không xoá được nhãn");
     }
   };
 
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Tags</h1>
-        <p className="text-sm text-muted-foreground">Gắn nhãn nhanh cho task.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Nhãn</h1>
+        <p className="text-sm text-muted-foreground">Gắn nhãn nhanh cho công việc.</p>
       </div>
       <form onSubmit={submit} className="mb-6 flex gap-2">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Tên tag (VD: urgent, idea)"
+          placeholder="Tên nhãn (VD: khan-cap, y-tuong)"
         />
         <Button type="submit">
           <Plus className="mr-2 h-4 w-4" />
@@ -66,7 +66,7 @@ function TagsPage() {
       </form>
       <div className="flex flex-wrap gap-2">
         {tags.length === 0 && (
-          <p className="text-sm text-muted-foreground">Chưa có tag.</p>
+          <p className="text-sm text-muted-foreground">Chưa có nhãn.</p>
         )}
         {tags.map((t) => {
           const count = tasks.filter(

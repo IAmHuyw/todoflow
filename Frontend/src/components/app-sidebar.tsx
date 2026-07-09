@@ -26,11 +26,11 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 
 const items = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Categories", url: "/categories", icon: FolderKanban },
-  { title: "Tags", url: "/tags", icon: TagIcon },
-  { title: "Shared", url: "/shared", icon: Users },
-  { title: "Notifications", url: "/notifications", icon: Bell },
+  { title: "Bảng công việc", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Danh mục", url: "/categories", icon: FolderKanban },
+  { title: "Nhãn", url: "/tags", icon: TagIcon },
+  { title: "Chia sẻ", url: "/shared", icon: Users },
+  { title: "Thông báo", url: "/notifications", icon: Bell },
 ];
 
 export function AppSidebar() {
@@ -72,7 +72,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel>Không gian làm việc</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {

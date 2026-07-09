@@ -14,7 +14,7 @@ public abstract class ApiControllerBase : ControllerBase
             var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(value, out var userId)
                 ? userId
-                : throw new AppException("Invalid authenticated user.", 401);
+                : throw new AppException("Phiên đăng nhập không hợp lệ.", 401);
         }
     }
 

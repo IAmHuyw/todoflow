@@ -68,7 +68,7 @@ public class CategoryService : ICategoryService
 
         var category = _unitOfWork.Categories.Query()
             .FirstOrDefault(category => category.Id == id && category.UserId == userId)
-            ?? throw new NotFoundException("Không tìm thấy category.");
+            ?? throw new NotFoundException("Không tìm thấy danh mục.");
 
         var name = request.Name.Trim();
         EnsureNameIsUnique(userId, name, id);
@@ -84,7 +84,7 @@ public class CategoryService : ICategoryService
     {
         var category = _unitOfWork.Categories.Query()
             .FirstOrDefault(category => category.Id == id && category.UserId == userId)
-            ?? throw new NotFoundException("Không tìm thấy category.");
+            ?? throw new NotFoundException("Không tìm thấy danh mục.");
 
         var tasks = _unitOfWork.Tasks.QueryForUser(userId)
             .Where(task => task.CategoryId == id)
@@ -109,7 +109,7 @@ public class CategoryService : ICategoryService
 
         if (exists)
         {
-            throw new AppException("Tên category đã tồn tại.", 409);
+            throw new AppException("Tên danh mục đã tồn tại.", 409);
         }
     }
 }

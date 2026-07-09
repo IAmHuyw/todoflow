@@ -63,7 +63,7 @@ public class TasksController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var task = await _taskService.CreateAsync(CurrentUserId, request, cancellationToken);
-        return OkResponse(task, "Task created.");
+        return OkResponse(task, "Đã tạo công việc.");
     }
 
     // Updates a task owned by the current user.
@@ -74,7 +74,7 @@ public class TasksController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var task = await _taskService.UpdateAsync(CurrentUserId, id, request, cancellationToken);
-        return OkResponse(task, "Task updated.");
+        return OkResponse(task, "Đã cập nhật công việc.");
     }
 
     // Soft deletes a task owned by the current user.
@@ -82,7 +82,7 @@ public class TasksController : ApiControllerBase
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id, CancellationToken cancellationToken)
     {
         await _taskService.DeleteAsync(CurrentUserId, id, cancellationToken);
-        return OkMessage("Task deleted.");
+        return OkMessage("Đã xoá công việc.");
     }
 
     // Updates only the status field for quick dashboard actions.
@@ -93,7 +93,16 @@ public class TasksController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var task = await _taskService.UpdateStatusAsync(CurrentUserId, id, request, cancellationToken);
-        return OkResponse(task, "Task status updated.");
+        return OkResponse(task, "Đã cập nhật trạng thái công việc.");
+    }
+
+    [HttpPut("reorder")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<TaskDto>>>> Reorder(
+        ReorderTasksRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tasks = await _taskService.ReorderAsync(CurrentUserId, request, cancellationToken);
+        return OkResponse(tasks, "Đã sắp xếp công việc.");
     }
 
     // Creates a subtask under a task owned by the current user.
@@ -104,7 +113,7 @@ public class TasksController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var subTask = await _subTaskService.CreateAsync(CurrentUserId, taskId, request, cancellationToken);
-        return OkResponse(subTask, "Subtask created.");
+        return OkResponse(subTask, "Đã tạo việc con.");
     }
 
     // Shares a task owned by the current user with another user.
@@ -115,7 +124,7 @@ public class TasksController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var share = await _taskShareService.ShareAsync(CurrentUserId, taskId, request, cancellationToken);
-        return OkResponse(share, "Task shared.");
+        return OkResponse(share, "Đã chia sẻ công việc.");
     }
 
     // Lists users that currently have a share record for a task owned by the current user.
@@ -136,7 +145,7 @@ public class TasksController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var reminder = await _reminderService.CreateAsync(CurrentUserId, taskId, request, cancellationToken);
-        return OkResponse(reminder, "Đã tạo reminder.");
+        return OkResponse(reminder, "Đã tạo nhắc nhở.");
     }
 
     // Lists reminders for a task the current user can access.

@@ -16,7 +16,7 @@ internal static class EnumParser
             "low" => Priority.Low,
             "medium" => Priority.Medium,
             "high" => Priority.High,
-            _ => throw new Common.AppException("Bộ lọc priority không hợp lệ.", 400)
+            _ => throw new Common.AppException("Bộ lọc độ ưu tiên không hợp lệ.", 400)
         };
     }
 
@@ -32,7 +32,7 @@ internal static class EnumParser
             "todo" => TodoStatus.Todo,
             "inprogress" => TodoStatus.InProgress,
             "done" => TodoStatus.Done,
-            _ => throw new Common.AppException("Bộ lọc status không hợp lệ.", 400)
+            _ => throw new Common.AppException("Bộ lọc trạng thái không hợp lệ.", 400)
         };
     }
 

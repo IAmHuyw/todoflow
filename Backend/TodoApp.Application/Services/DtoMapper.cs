@@ -15,7 +15,7 @@ internal static class DtoMapper
         new(tag.Id, tag.UserId, tag.Name);
 
     public static SubTaskDto ToDto(SubTask subTask) =>
-        new(subTask.Id, subTask.TaskId, subTask.Title, subTask.IsCompleted);
+        new(subTask.Id, subTask.TaskId, subTask.Title, subTask.Note ?? string.Empty, subTask.IsCompleted);
 
     public static TaskDto ToDto(TodoTask task) =>
         new(
@@ -27,6 +27,11 @@ internal static class DtoMapper
             task.Priority,
             task.Status,
             task.DueDate,
+            task.RecurrenceType,
+            task.RecurrenceInterval,
+            task.RecurrenceEndDate,
+            task.RecurrenceParentId,
+            task.SortOrder,
             task.IsDeleted,
             task.TaskTags.Select(taskTag => taskTag.TagId).ToArray(),
             task.SubTasks.Select(ToDto).ToArray(),

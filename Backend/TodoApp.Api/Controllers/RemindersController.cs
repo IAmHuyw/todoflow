@@ -23,6 +23,6 @@ public class RemindersController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         await _reminderService.DeleteAsync(CurrentUserId, id, cancellationToken);
-        return OkMessage("Đã xoá reminder.");
+        return OkMessage("Đã xoá nhắc nhở.");
     }
 }

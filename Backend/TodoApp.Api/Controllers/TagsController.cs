@@ -32,7 +32,7 @@ public class TagsController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var tag = await _tagService.CreateAsync(CurrentUserId, request, cancellationToken);
-        return OkResponse(tag, "Tag created.");
+        return OkResponse(tag, "Đã tạo nhãn.");
     }
 
     // Deletes a tag and its task associations.
@@ -40,6 +40,6 @@ public class TagsController : ApiControllerBase
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id, CancellationToken cancellationToken)
     {
         await _tagService.DeleteAsync(CurrentUserId, id, cancellationToken);
-        return OkMessage("Tag deleted.");
+        return OkMessage("Đã xoá nhãn.");
     }
 }

@@ -8,13 +8,13 @@ public class CreateCategoryRequestValidator : AbstractValidator<CreateCategoryRe
     public CreateCategoryRequestValidator()
     {
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("Tên category là bắt buộc.")
-            .MaximumLength(50).WithMessage("Tên category không được vượt quá 50 ký tự.");
+            .NotEmpty().WithMessage("Tên danh mục là bắt buộc.")
+            .MaximumLength(50).WithMessage("Tên danh mục không được vượt quá 50 ký tự.");
         RuleFor(x => x.Color)
-            .NotEmpty().WithMessage("Màu category là bắt buộc.")
-            .MaximumLength(20).WithMessage("Màu category không được vượt quá 20 ký tự.")
+            .NotEmpty().WithMessage("Màu danh mục là bắt buộc.")
+            .MaximumLength(20).WithMessage("Màu danh mục không được vượt quá 20 ký tự.")
             .Matches("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
-            .WithMessage("Màu category phải là mã hex hợp lệ.");
+            .WithMessage("Màu danh mục phải là mã hex hợp lệ.");
     }
 }
 
@@ -23,12 +23,12 @@ public class UpdateCategoryRequestValidator : AbstractValidator<UpdateCategoryRe
     public UpdateCategoryRequestValidator()
     {
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("Tên category là bắt buộc.")
-            .MaximumLength(50).WithMessage("Tên category không được vượt quá 50 ký tự.");
+            .NotEmpty().WithMessage("Tên danh mục là bắt buộc.")
+            .MaximumLength(50).WithMessage("Tên danh mục không được vượt quá 50 ký tự.");
         RuleFor(x => x.Color)
-            .NotEmpty().WithMessage("Màu category là bắt buộc.")
-            .MaximumLength(20).WithMessage("Màu category không được vượt quá 20 ký tự.")
+            .NotEmpty().WithMessage("Màu danh mục là bắt buộc.")
+            .MaximumLength(20).WithMessage("Màu danh mục không được vượt quá 20 ký tự.")
             .Matches("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
-            .WithMessage("Màu category phải là mã hex hợp lệ.");
+            .WithMessage("Màu danh mục phải là mã hex hợp lệ.");
     }
 }

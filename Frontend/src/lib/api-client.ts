@@ -78,7 +78,7 @@ export async function apiRequest<T>(
 
   if (!response.ok || !payload.success) {
     throw new ApiError(
-      payload.message ?? "Không thể gọi API.",
+      payload.message ?? "Không thể kết nối máy chủ.",
       response.status,
       payload.errors ?? undefined,
     );

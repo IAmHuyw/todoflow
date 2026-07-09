@@ -54,9 +54,15 @@ export interface TaskListQuery {
   priority?: Priority | "all";
   status?: Status | "all";
   search?: string;
-  sortBy?: "createdAt" | "dueDate" | "priority" | "title";
+  sortBy?: "sortOrder" | "createdAt" | "dueDate" | "priority" | "title";
   page?: number;
   pageSize?: number;
+}
+
+interface TaskOrderItem {
+  id: string;
+  status: Status;
+  sortOrder: number;
 }
 
 interface TodoState {
@@ -89,12 +95,23 @@ interface TodoState {
   addTag: (name: string) => Promise<void>;
   deleteTag: (id: string) => Promise<void>;
   addTask: (
-    input: Omit<Task, "id" | "userId" | "isDeleted" | "createdAt" | "updatedAt">,
+    input: Omit<
+      Task,
+      | "id"
+      | "userId"
+      | "isDeleted"
+      | "createdAt"
+      | "updatedAt"
+      | "recurrenceParentId"
+      | "sortOrder"
+    >,
   ) => Promise<string | null>;
   updateTask: (id: string, patch: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   setTaskStatus: (id: string, status: Status) => Promise<void>;
-  addSubtask: (taskId: string, title: string) => Promise<void>;
+  reorderTasks: (items: TaskOrderItem[]) => Promise<void>;
+  addSubtask: (taskId: string, title: string, note?: string) => Promise<void>;
+  updateSubtask: (id: string, patch: Partial<Pick<SubTask, "title" | "note" | "isCompleted">>) => Promise<void>;
   toggleSubtask: (id: string) => Promise<void>;
   deleteSubtask: (id: string) => Promise<void>;
   shareTask: (
@@ -139,7 +156,11 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     try {
       const user = await apiRequest<User>("/api/auth/me");
       set({ users: [user], currentUserId: user.id, hydrated: true });
-      await get().loadWorkspace();
+      try {
+        await get().loadWorkspace();
+      } catch {
+        // Giữ phiên đăng nhập nếu chỉ dữ liệu workspace bị lỗi tạm thời.
+      }
       await startStoreRealtime(set, get);
     } catch {
       clearTokens();
@@ -167,7 +188,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         apiRequest<Category[]>("/api/categories"),
         apiRequest<Tag[]>("/api/tags"),
         apiRequest<PagedResult<TaskDto>>(
-          "/api/tasks?page=1&pageSize=100&sortBy=createdAt&sortDir=desc",
+          `/api/tasks?${buildTaskQueryString({ page: 1, pageSize: 100 })}`,
         ),
         apiRequest<TaskShareDto[]>("/api/tasks/shared-with-me"),
         apiRequest<PagedResult<Notification>>("/api/notifications?page=1&pageSize=100"),
@@ -364,10 +385,35 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         priority: patch.priority ?? existing.priority,
         status: patch.status ?? existing.status,
         dueDate: patch.dueDate === undefined ? existing.dueDate : patch.dueDate,
+        recurrenceType: patch.recurrenceType ?? existing.recurrenceType,
+        recurrenceInterval: patch.recurrenceInterval ?? existing.recurrenceInterval,
+        recurrenceEndDate:
+          patch.recurrenceEndDate === undefined
+            ? existing.recurrenceEndDate
+            : patch.recurrenceEndDate,
         tagIds: patch.tagIds ?? existing.tagIds,
       }),
     });
     upsertTask(set, get, task);
+  },
+
+  reorderTasks: async (items) => {
+    const optimistic = new Map(items.map((item) => [item.id, item]));
+    set({
+      tasks: get().tasks.map((task) => {
+        const item = optimistic.get(task.id);
+        return item ? { ...task, status: item.status, sortOrder: item.sortOrder } : task;
+      }),
+    });
+
+    const tasks = await apiRequest<TaskDto[]>("/api/tasks/reorder", {
+      method: "PUT",
+      body: JSON.stringify({ items }),
+    });
+
+    for (const task of tasks) {
+      upsertTask(set, get, task);
+    }
   },
 
   deleteTask: async (id) => {
@@ -388,29 +434,39 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       body: JSON.stringify({ status }),
     });
     upsertTask(set, get, task);
+    if (status === "done" && task.recurrenceType !== "none") {
+      await get().loadTasks();
+    }
   },
 
-  addSubtask: async (taskId, title) => {
+  addSubtask: async (taskId, title, note = "") => {
     const subTask = await apiRequest<SubTask>(`/api/tasks/${taskId}/subtasks`, {
       method: "POST",
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title, note }),
     });
     set({ subtasks: [...get().subtasks, subTask] });
   },
 
-  toggleSubtask: async (id) => {
+  updateSubtask: async (id, patch) => {
     const existing = get().subtasks.find((subtask) => subtask.id === id);
     if (!existing) return;
     const subTask = await apiRequest<SubTask>(`/api/subtasks/${id}`, {
       method: "PUT",
       body: JSON.stringify({
-        title: existing.title,
-        isCompleted: !existing.isCompleted,
+        title: patch.title ?? existing.title,
+        note: patch.note ?? existing.note,
+        isCompleted: patch.isCompleted ?? existing.isCompleted,
       }),
     });
     set({
       subtasks: get().subtasks.map((item) => (item.id === id ? subTask : item)),
     });
+  },
+
+  toggleSubtask: async (id) => {
+    const existing = get().subtasks.find((subtask) => subtask.id === id);
+    if (!existing) return;
+    await get().updateSubtask(id, { isCompleted: !existing.isCompleted });
   },
 
   deleteSubtask: async (id) => {
@@ -606,9 +662,11 @@ function buildTaskQueryString(query?: TaskListQuery) {
   const params = new URLSearchParams({
     page: String(query?.page ?? 1),
     pageSize: String(query?.pageSize ?? 100),
-    sortBy: query?.sortBy ?? "createdAt",
   });
-  const sortBy = query?.sortBy ?? "createdAt";
+  const sortBy = query?.sortBy ?? "sortOrder";
+  if (sortBy !== "sortOrder") {
+    params.set("sortBy", sortBy);
+  }
   params.set("sortDir", sortBy === "createdAt" ? "desc" : "asc");
 
   if (query?.categoryId && query.categoryId !== "all") {
@@ -631,5 +689,5 @@ function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
   }
-  return "Có lỗi xảy ra khi gọi backend.";
+  return "Có lỗi xảy ra khi kết nối máy chủ.";
 }

@@ -12,6 +12,11 @@ public class TodoTask
     public Priority Priority { get; set; } = Priority.Medium;
     public TodoStatus Status { get; set; } = TodoStatus.Todo;
     public DateTime? DueDate { get; set; }
+    public RecurrenceType RecurrenceType { get; set; } = RecurrenceType.None;
+    public int RecurrenceInterval { get; set; } = 1;
+    public DateTime? RecurrenceEndDate { get; set; }
+    public Guid? RecurrenceParentId { get; set; }
+    public int SortOrder { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

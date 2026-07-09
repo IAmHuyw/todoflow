@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/shared")({
   component: SharedPage,
-  head: () => ({ meta: [{ title: "Shared — TodoFlow" }] }),
+  head: () => ({ meta: [{ title: "Chia sẻ — TodoFlow" }] }),
 });
 
 function SharedPage() {
@@ -49,9 +49,9 @@ function SharedPage() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Shared with me</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Được chia sẻ với tôi</h1>
         <p className="text-sm text-muted-foreground">
-          Task được cộng tác cùng người khác.
+          Công việc được cộng tác cùng người khác.
         </p>
       </div>
 
@@ -64,7 +64,7 @@ function SharedPage() {
             {invitations.map((sh) => {
               const task = tasks.find((t) => t.id === sh.taskId);
               const owner = users.find((u) => u.id === sh.ownerId);
-              const ownerName = sh.ownerUsername ?? owner?.username ?? "User";
+              const ownerName = sh.ownerUsername ?? owner?.username ?? "Người dùng";
               return (
                 <div
                   key={sh.id}
@@ -74,7 +74,7 @@ function SharedPage() {
                     <div className="font-medium">{task?.title}</div>
                     <div className="text-xs text-muted-foreground">
                       Từ <span className="font-medium">{ownerName}</span> ·
-                      quyền <Badge variant="outline">{sh.permission}</Badge>
+                      quyền <Badge variant="outline">{sh.permission === "edit" ? "Sửa" : "Xem"}</Badge>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -101,13 +101,13 @@ function SharedPage() {
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Task đang cộng tác ({acceptedTasks.length})
+          Công việc đang cộng tác ({acceptedTasks.length})
         </h2>
         {acceptedTasks.length === 0 ? (
           <div className="flex flex-col items-center rounded-xl border border-dashed border-border p-10 text-center">
             <Inbox className="mb-2 h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Chưa có task nào được chia sẻ.
+              Chưa có công việc nào được chia sẻ.
             </p>
           </div>
         ) : (

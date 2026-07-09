@@ -33,15 +33,15 @@ function Landing() {
       <section className="mx-auto max-w-4xl px-6 py-24 text-center">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs text-muted-foreground">
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          Full-stack portfolio project
+          Ứng dụng quản lý công việc
         </div>
         <h1 className="text-5xl font-semibold tracking-tight text-foreground md:text-6xl">
-          Task quản lý gọn.
+          Quản lý công việc gọn.
           <br />
           <span className="text-muted-foreground">Ý tưởng không lạc trôi.</span>
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-          TodoFlow gom task, category, subtask, chia sẻ cộng tác và nhắc nhở
+          TodoFlow gom công việc, danh mục, nhãn, việc con, chia sẻ cộng tác và nhắc nhở
           vào một không gian tối giản, tập trung.
         </p>
         <div className="mt-8 flex justify-center gap-3">
@@ -51,14 +51,7 @@ function Landing() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
-          <Button asChild size="lg" variant="outline">
-            <Link to="/auth">Dùng thử demo</Link>
-          </Button>
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          Tài khoản demo: <span className="font-mono">demo@todo.app</span> /{" "}
-          <span className="font-mono">demo1234</span>
-        </p>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
@@ -66,18 +59,18 @@ function Landing() {
           {[
             {
               icon: ListTodo,
-              title: "Task có cấu trúc",
-              desc: "Category, priority, tag, subtask checklist — mọi thứ được tổ chức rõ ràng.",
+              title: "Công việc có cấu trúc",
+              desc: "Danh mục, độ ưu tiên, nhãn và danh sách việc con được tổ chức rõ ràng.",
             },
             {
               icon: Users,
               title: "Cộng tác dễ dàng",
-              desc: "Chia sẻ task với đồng đội, phân quyền View/Edit, phản hồi lời mời.",
+              desc: "Chia sẻ công việc với đồng đội, phân quyền xem/sửa và phản hồi lời mời.",
             },
             {
               icon: Bell,
               title: "Nhắc nhở thông minh",
-              desc: "Đặt reminder theo lịch, thông báo in-app khi có cập nhật.",
+              desc: "Đặt nhắc nhở theo lịch và nhận thông báo trong ứng dụng khi có cập nhật.",
             },
           ].map((f) => (
             <div
@@ -96,7 +89,7 @@ function Landing() {
 
       <footer className="border-t border-border">
         <div className="mx-auto max-w-6xl px-6 py-6 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} TodoFlow · Demo project
+          © {new Date().getFullYear()} TodoFlow
         </div>
       </footer>
     </div>

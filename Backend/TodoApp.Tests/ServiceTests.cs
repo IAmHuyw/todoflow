@@ -22,24 +22,24 @@ public class ServiceTests
 
         var registered = await auth.RegisterAsync(new RegisterRequest
         {
-            Username = "demo",
-            Email = "demo@todo.app",
-            Password = "demo1234"
+            Username = "testuser",
+            Email = "testuser@todo.app",
+            Password = "test1234"
         });
 
-        Assert.Equal("demo", registered.User.Username);
+        Assert.Equal("testuser", registered.User.Username);
         await Assert.ThrowsAsync<Application.Common.AppException>(() =>
             auth.RegisterAsync(new RegisterRequest
             {
-                Username = "demo",
+                Username = "testuser",
                 Email = "other@todo.app",
-                Password = "demo1234"
+                Password = "test1234"
             }));
 
         var loggedIn = await auth.LoginAsync(new LoginRequest
         {
-            EmailOrUsername = "demo",
-            Password = "demo1234"
+            EmailOrUsername = "testuser",
+            Password = "test1234"
         });
 
         Assert.False(string.IsNullOrWhiteSpace(loggedIn.AccessToken));
@@ -74,7 +74,7 @@ public class ServiceTests
         {
             CategoryId = category.Id,
             Title = "Write README",
-            Description = "Prepare portfolio demo",
+            Description = "Prepare release notes",
             Priority = Priority.High,
             Status = TodoStatus.Todo,
             DueDate = DateTime.UtcNow.AddDays(2),
@@ -200,7 +200,8 @@ public class ServiceTests
             new UnitOfWork(dbContext),
             new CreateTaskRequestValidator(),
             new UpdateTaskRequestValidator(),
-            new UpdateTaskStatusRequestValidator());
+            new UpdateTaskStatusRequestValidator(),
+            new ReorderTasksRequestValidator());
 
     private static SubTaskService CreateSubTaskService(AppDbContext dbContext) =>
         new(new UnitOfWork(dbContext), new CreateSubTaskRequestValidator(), new UpdateSubTaskRequestValidator());
@@ -209,9 +210,9 @@ public class ServiceTests
     {
         var user = new User
         {
-            Username = "demo",
+            Username = "testuser",
             Email = $"{Guid.NewGuid():N}@todo.app",
-            PasswordHash = new BCryptPasswordHasher().HashPassword("demo1234")
+            PasswordHash = new BCryptPasswordHasher().HashPassword("test1234")
         };
 
         dbContext.Users.Add(user);

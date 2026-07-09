@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
 import { Bell, Check, CheckCheck, Share2, Clock, CheckCircle2 } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/notifications")({
   component: NotificationsPage,
-  head: () => ({ meta: [{ title: "Notifications — TodoFlow" }] }),
+  head: () => ({ meta: [{ title: "Thông báo — TodoFlow" }] }),
 });
 
 const iconFor: Record<NotificationType, typeof Bell> = {
@@ -56,7 +57,7 @@ function NotificationsPage() {
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Thông báo</h1>
           <p className="text-sm text-muted-foreground">
             {unread} chưa đọc · tổng {notifications.length}
           </p>
@@ -95,7 +96,10 @@ function NotificationsPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm">{n.message}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(n.createdAt), {
+                    addSuffix: true,
+                    locale: vi,
+                  })}
                 </p>
               </div>
               {!n.isRead && (

@@ -39,13 +39,14 @@ public class SubTaskService : ISubTaskService
                 taskId,
                 includeDetails: true,
                 cancellationToken)
-            ?? throw new NotFoundException("Không tìm thấy task.");
+            ?? throw new NotFoundException("Không tìm thấy công việc.");
         EnsureCanEdit(userId, task);
 
         var subTask = new SubTask
         {
             TaskId = task.Id,
             Title = request.Title.Trim(),
+            Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
             IsCompleted = false
         };
 
@@ -68,17 +69,18 @@ public class SubTaskService : ISubTaskService
 
         var subTask = _unitOfWork.SubTasks.Query()
             .FirstOrDefault(subTask => subTask.Id == id)
-            ?? throw new NotFoundException("Không tìm thấy subtask.");
+            ?? throw new NotFoundException("Không tìm thấy việc con.");
 
         var task = await _unitOfWork.Tasks.GetAccessibleForUserAsync(
                 userId,
                 subTask.TaskId,
                 includeDetails: true,
                 cancellationToken)
-            ?? throw new NotFoundException("Không tìm thấy subtask.");
+            ?? throw new NotFoundException("Không tìm thấy việc con.");
         EnsureCanEdit(userId, task);
 
         subTask.Title = request.Title.Trim();
+        subTask.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
         subTask.IsCompleted = request.IsCompleted;
         task.UpdatedAt = DateTime.UtcNow;
 
@@ -92,14 +94,14 @@ public class SubTaskService : ISubTaskService
     {
         var subTask = _unitOfWork.SubTasks.Query()
             .FirstOrDefault(subTask => subTask.Id == id)
-            ?? throw new NotFoundException("Không tìm thấy subtask.");
+            ?? throw new NotFoundException("Không tìm thấy việc con.");
 
         var task = await _unitOfWork.Tasks.GetAccessibleForUserAsync(
                 userId,
                 subTask.TaskId,
                 includeDetails: true,
                 cancellationToken)
-            ?? throw new NotFoundException("Không tìm thấy subtask.");
+            ?? throw new NotFoundException("Không tìm thấy việc con.");
         EnsureCanEdit(userId, task);
 
         task.UpdatedAt = DateTime.UtcNow;
@@ -123,7 +125,7 @@ public class SubTaskService : ISubTaskService
 
         if (!canEdit)
         {
-            throw new AppException("Bạn không có quyền chỉnh sửa task này.", 403);
+            throw new AppException("Bạn không có quyền chỉnh sửa công việc này.", 403);
         }
     }
 }

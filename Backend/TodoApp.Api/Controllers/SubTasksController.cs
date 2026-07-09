@@ -25,7 +25,7 @@ public class SubTasksController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var subTask = await _subTaskService.UpdateAsync(CurrentUserId, id, request, cancellationToken);
-        return OkResponse(subTask, "Subtask updated.");
+        return OkResponse(subTask, "Đã cập nhật việc con.");
     }
 
     // Deletes a subtask that belongs to a task owned by the current user.
@@ -33,6 +33,6 @@ public class SubTasksController : ApiControllerBase
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id, CancellationToken cancellationToken)
     {
         await _subTaskService.DeleteAsync(CurrentUserId, id, cancellationToken);
-        return OkMessage("Subtask deleted.");
+        return OkMessage("Đã xoá việc con.");
     }
 }

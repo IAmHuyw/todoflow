@@ -82,13 +82,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "TodoFlow: ứng dụng quản lý task cá nhân với category, priority, subtask, chia sẻ và nhắc nhở.",
+          "TodoFlow: ứng dụng quản lý công việc cá nhân với danh mục, độ ưu tiên, việc con, chia sẻ và nhắc nhở.",
       },
       { property: "og:title", content: "TodoFlow — Quản lý công việc cá nhân" },
       {
         property: "og:description",
         content:
-          "Quản lý task, subtask, category, tag, chia sẻ cộng tác và nhắc nhở thông minh.",
+          "Quản lý công việc, việc con, danh mục, nhãn, chia sẻ cộng tác và nhắc nhở thông minh.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -1,5 +1,6 @@
 export type Priority = "low" | "medium" | "high";
 export type Status = "todo" | "in_progress" | "done";
+export type RecurrenceType = "none" | "daily" | "weekly" | "monthly";
 export type SharePermission = "view" | "edit";
 export type ShareStatus = "pending" | "accepted" | "rejected";
 export type NotificationType =
@@ -34,6 +35,7 @@ export interface SubTask {
   id: string;
   taskId: string;
   title: string;
+  note: string;
   isCompleted: boolean;
 }
 
@@ -46,6 +48,11 @@ export interface Task {
   priority: Priority;
   status: Status;
   dueDate: string | null;
+  recurrenceType: RecurrenceType;
+  recurrenceInterval: number;
+  recurrenceEndDate: string | null;
+  recurrenceParentId: string | null;
+  sortOrder: number;
   isDeleted: boolean;
   tagIds: string[];
   createdAt: string;

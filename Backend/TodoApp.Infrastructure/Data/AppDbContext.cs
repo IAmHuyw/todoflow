@@ -67,6 +67,8 @@ public class AppDbContext : DbContext
             entity.HasKey(task => task.Id);
             entity.Property(task => task.Title).HasMaxLength(200).IsRequired();
             entity.Property(task => task.Description).HasMaxLength(1000);
+            entity.Property(task => task.RecurrenceType).HasConversion<int>();
+            entity.Property(task => task.RecurrenceInterval).HasDefaultValue(1);
             entity.HasQueryFilter(task => !task.IsDeleted);
             entity.HasOne(task => task.User)
                 .WithMany(user => user.Tasks)
@@ -77,6 +79,7 @@ public class AppDbContext : DbContext
                 .HasForeignKey(task => task.CategoryId)
                 .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(task => new { task.UserId, task.Status });
+            entity.HasIndex(task => new { task.UserId, task.Status, task.SortOrder });
             entity.HasIndex(task => new { task.UserId, task.Priority });
             entity.HasIndex(task => new { task.UserId, task.DueDate });
         });
@@ -86,6 +89,7 @@ public class AppDbContext : DbContext
             entity.ToTable("SubTasks");
             entity.HasKey(subTask => subTask.Id);
             entity.Property(subTask => subTask.Title).HasMaxLength(200).IsRequired();
+            entity.Property(subTask => subTask.Note).HasMaxLength(1000);
             entity.HasQueryFilter(subTask => !subTask.Task.IsDeleted);
             entity.HasOne(subTask => subTask.Task)
                 .WithMany(task => task.SubTasks)

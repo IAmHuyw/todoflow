@@ -1,10 +1,10 @@
 # TodoFlow
 
-TodoFlow là app quản lý task full-stack gồm React frontend và ASP.NET Core backend. Backend hiện có auth, task/category/subtask/tag, sharing realtime, notification và reminder qua Gmail SMTP.
+TodoFlow là app quản lý task full-stack gồm React frontend và ASP.NET Core backend. Backend hiện có auth, task/category/subtask/tag, recurring task, kéo-thả sắp xếp, sharing realtime, notification và reminder qua Gmail SMTP.
 
 ## Stack
 
-- Frontend: React, Vite, TanStack Router, Zustand, SignalR client.
+- Frontend: React, Vite, TanStack Router, Zustand, SignalR client, dnd-kit.
 - Backend: ASP.NET Core Web API .NET 10, EF Core, SQL Server, JWT Bearer, SignalR.
 - Database local: SQL Server 2022 qua Docker Compose.
 
@@ -15,6 +15,7 @@ TodoFlow là app quản lý task full-stack gồm React frontend và ASP.NET Cor
 - Phase 6: chia sẻ task, quyền xem/sửa, danh sách task được share, cập nhật realtime qua SignalR.
 - Phase 7: notification, reminder in-app/email/both, background worker xử lý reminder.
 - Phase 8: cấu hình dev rõ hơn, giảm log SQL, tài liệu chạy dự án.
+- Phase 9: ghi chú subtask, recurring tasks, kéo-thả task giữa các cột bằng dnd-kit.
 
 ## Chạy database
 
@@ -41,11 +42,6 @@ dotnet run --project Backend/TodoApp.Api --urls http://localhost:5050
 
 Swagger: `http://localhost:5050/swagger`
 
-Tài khoản demo sau khi seed:
-
-- `demo@todo.app` / `demo1234`
-- `alex@todo.app` / `alex1234`
-
 ## Cấu hình Gmail SMTP
 
 Không đưa mật khẩu Gmail hoặc app password vào `appsettings.json`. Dùng user-secrets trong project API:
@@ -60,7 +56,7 @@ dotnet user-secrets set "Smtp:FromEmail" "your-gmail@gmail.com"
 dotnet user-secrets set "Smtp:FromName" "TodoFlow"
 ```
 
-Gmail cần App Password, không dùng mật khẩu đăng nhập Gmail thường. Email reminder sẽ gửi tới email của user đang sở hữu task. Nếu tài khoản demo dùng email giả như `demo@todo.app`, Gmail sẽ không gửi tới hộp thư thật của bạn.
+Gmail cần App Password, không dùng mật khẩu đăng nhập Gmail thường. Email reminder sẽ gửi tới email của user đang sở hữu task.
 
 ## Chạy frontend
 

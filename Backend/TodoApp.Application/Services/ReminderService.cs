@@ -71,7 +71,7 @@ public class ReminderService : IReminderService
     {
         var reminder = _unitOfWork.TaskReminders.Query()
             .FirstOrDefault(reminder => reminder.Id == id)
-            ?? throw new NotFoundException("Không tìm thấy reminder.");
+            ?? throw new NotFoundException("Không tìm thấy nhắc nhở.");
 
         await EnsureTaskEditableAsync(userId, reminder.TaskId, cancellationToken);
         _unitOfWork.TaskReminders.Remove(reminder);
@@ -99,7 +99,7 @@ public class ReminderService : IReminderService
                 continue;
             }
 
-            var message = $"Đến giờ nhắc nhở task: {task.Title}";
+            var message = $"Đến giờ nhắc nhở công việc: {task.Title}";
 
             if (reminder.Channel is ReminderChannel.Email or ReminderChannel.Both)
             {
@@ -108,7 +108,7 @@ public class ReminderService : IReminderService
                 {
                     await _emailSender.SendAsync(
                         user.Email,
-                        $"TodoFlow reminder: {task.Title}",
+                        $"TodoFlow nhắc nhở: {task.Title}",
                         BuildReminderEmail(user.Username, task.Title, task.Description, task.DueDate),
                         cancellationToken);
                 }
@@ -137,7 +137,7 @@ public class ReminderService : IReminderService
                 taskId,
                 includeDetails: true,
                 cancellationToken)
-            ?? throw new NotFoundException("Không tìm thấy task.");
+            ?? throw new NotFoundException("Không tìm thấy công việc.");
     }
 
     private async Task<TodoTask> EnsureTaskEditableAsync(
@@ -158,7 +158,7 @@ public class ReminderService : IReminderService
 
         if (!canEdit)
         {
-            throw new AppException("Bạn không có quyền chỉnh sửa task này.", 403);
+            throw new AppException("Bạn không có quyền chỉnh sửa công việc này.", 403);
         }
 
         return task;
@@ -182,17 +182,17 @@ public class ReminderService : IReminderService
             : EscapeHtml(description);
         var due = dueDate.HasValue
             ? dueDate.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-            : "Chưa đặt due date";
+            : "Chưa đặt hạn làm";
 
         return $"""
             <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
-              <h2>TodoFlow nhắc bạn một task</h2>
+              <h2>TodoFlow nhắc bạn một công việc</h2>
               <p>Xin chào {EscapeHtml(username)},</p>
-              <p>Đến giờ nhắc nhở task:</p>
+              <p>Đến giờ nhắc nhở công việc:</p>
               <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin:12px 0">
                 <h3 style="margin:0 0 8px">{safeTitle}</h3>
                 <p style="margin:0 0 8px;color:#4b5563">{safeDescription}</p>
-                <p style="margin:0;color:#6b7280">Due date: {due}</p>
+                <p style="margin:0;color:#6b7280">Hạn làm: {due}</p>
               </div>
               <p>Chúc bạn xử lý gọn gàng nhé.</p>
             </div>

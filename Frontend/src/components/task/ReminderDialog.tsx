@@ -67,18 +67,18 @@ export function ReminderDialog({ open, onOpenChange, taskId }: Props) {
       await add(taskId, remindAt.toISOString(), channel);
       setRemindDate("");
       setRemindTime("");
-      toast.success("Đã đặt reminder");
+      toast.success("Đã đặt nhắc nhở");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không đặt được reminder");
+      toast.error(error instanceof Error ? error.message : "Không đặt được nhắc nhở");
     }
   };
 
   const removeReminder = async (id: string) => {
     try {
       await del(id);
-      toast.success("Đã xoá reminder");
+      toast.success("Đã xoá nhắc nhở");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không xoá được reminder");
+      toast.error(error instanceof Error ? error.message : "Không xoá được nhắc nhở");
     }
   };
 
@@ -115,7 +115,7 @@ export function ReminderDialog({ open, onOpenChange, taskId }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="in_app">In-app</SelectItem>
+                  <SelectItem value="in_app">Trong ứng dụng</SelectItem>
                   <SelectItem value="email">Email</SelectItem>
                   <SelectItem value="both">Cả hai</SelectItem>
                 </SelectContent>
@@ -125,9 +125,9 @@ export function ReminderDialog({ open, onOpenChange, taskId }: Props) {
           </div>
         </form>
         <div className="space-y-2">
-          <Label>Reminder đã đặt</Label>
+          <Label>Nhắc nhở đã đặt</Label>
           {reminders.length === 0 && (
-            <p className="text-sm text-muted-foreground">Chưa có reminder.</p>
+            <p className="text-sm text-muted-foreground">Chưa có nhắc nhở.</p>
           )}
           {reminders.map((r) => (
             <div
@@ -139,7 +139,7 @@ export function ReminderDialog({ open, onOpenChange, taskId }: Props) {
                   {format(new Date(r.remindAt), "dd MMM yyyy, HH:mm")}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Kênh: {r.channel} {r.isSent && "· đã gửi"}
+                  Kênh: {channelLabel[r.channel]} {r.isSent && "· đã gửi"}
                 </div>
               </div>
               <Button
@@ -162,6 +162,12 @@ export function ReminderDialog({ open, onOpenChange, taskId }: Props) {
     </Dialog>
   );
 }
+
+const channelLabel = {
+  in_app: "Trong ứng dụng",
+  email: "Email",
+  both: "Cả hai",
+};
 
 function formatDateInput(date: Date) {
   const year = date.getFullYear();

@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/categories")({
   component: CategoriesPage,
-  head: () => ({ meta: [{ title: "Categories — TodoFlow" }] }),
+  head: () => ({ meta: [{ title: "Danh mục — TodoFlow" }] }),
 });
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
@@ -58,18 +58,18 @@ function CategoriesPage() {
       if (editing) await updateCategory(editing.id, { name: name.trim(), color });
       else await addCategory(name.trim(), color);
       setOpen(false);
-      toast.success(editing ? "Đã cập nhật category" : "Đã tạo category");
+      toast.success(editing ? "Đã cập nhật danh mục" : "Đã tạo danh mục");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không lưu được category");
+      toast.error(error instanceof Error ? error.message : "Không lưu được danh mục");
     }
   };
 
   const removeCategory = async (id: string) => {
     try {
       await deleteCategory(id);
-      toast.success("Đã xoá category");
+      toast.success("Đã xoá danh mục");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không xoá được category");
+      toast.error(error instanceof Error ? error.message : "Không xoá được danh mục");
     }
   };
 
@@ -77,18 +77,18 @@ function CategoriesPage() {
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Categories</h1>
-          <p className="text-sm text-muted-foreground">Phân loại task theo nhóm.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Danh mục</h1>
+          <p className="text-sm text-muted-foreground">Phân loại công việc theo nhóm.</p>
         </div>
         <Button onClick={openNew}>
-          <Plus className="mr-2 h-4 w-4" /> Category mới
+          <Plus className="mr-2 h-4 w-4" /> Danh mục mới
         </Button>
       </div>
 
       <div className="space-y-2">
         {categories.length === 0 && (
           <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Chưa có category nào.
+            Chưa có danh mục nào.
           </div>
         )}
         {categories.map((c) => {
@@ -107,7 +107,7 @@ function CategoriesPage() {
                 />
                 <div>
                   <div className="font-medium">{c.name}</div>
-                  <div className="text-xs text-muted-foreground">{count} task</div>
+                  <div className="text-xs text-muted-foreground">{count} công việc</div>
                 </div>
               </div>
               <div className="flex gap-1">
@@ -131,7 +131,7 @@ function CategoriesPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editing ? "Chỉnh sửa category" : "Category mới"}
+              {editing ? "Chỉnh sửa danh mục" : "Danh mục mới"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={save} className="space-y-4">

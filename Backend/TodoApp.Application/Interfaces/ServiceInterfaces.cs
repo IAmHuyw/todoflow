@@ -35,6 +35,7 @@ public interface ITaskService
     Task<TaskDto> UpdateAsync(Guid userId, Guid id, UpdateTaskRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
     Task<TaskDto> UpdateStatusAsync(Guid userId, Guid id, UpdateTaskStatusRequest request, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TaskDto>> ReorderAsync(Guid userId, ReorderTasksRequest request, CancellationToken cancellationToken = default);
 }
 
 public interface ITaskShareService

@@ -42,8 +42,8 @@ function AuthPage() {
   }, [hydrated, currentUserId, navigate]);
 
   const [loginForm, setLoginForm] = useState({
-    email: "demo@todo.app",
-    password: "demo1234",
+    email: "",
+    password: "",
   });
   const [registerForm, setRegisterForm] = useState({
     username: "",
@@ -91,7 +91,7 @@ function AuthPage() {
             <TabsContent value="login" className="mt-6">
               <form onSubmit={submitLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="l-email">Email hoặc username</Label>
+                  <Label htmlFor="l-email">Email hoặc tên đăng nhập</Label>
                   <Input
                     id="l-email"
                     value={loginForm.email}
@@ -116,16 +116,13 @@ function AuthPage() {
                 <Button type="submit" className="w-full">
                   Đăng nhập
                 </Button>
-                <p className="text-center text-xs text-muted-foreground">
-                  Demo: demo@todo.app / demo1234
-                </p>
               </form>
             </TabsContent>
 
             <TabsContent value="register" className="mt-6">
               <form onSubmit={submitRegister} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="r-username">Username</Label>
+                  <Label htmlFor="r-username">Tên đăng nhập</Label>
                   <Input
                     id="r-username"
                     value={registerForm.username}

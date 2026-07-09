@@ -38,14 +38,14 @@ public class TaskShareService : ITaskShareService
                 taskId,
                 includeDetails: true,
                 cancellationToken)
-            ?? throw new NotFoundException("Không tìm thấy task.");
+            ?? throw new NotFoundException("Không tìm thấy công việc.");
 
         var target = await FindTargetUserAsync(request.EmailOrUsername, cancellationToken)
             ?? throw new AppException("Không tìm thấy người dùng để chia sẻ.", 404);
 
         if (target.Id == ownerId)
         {
-            throw new AppException("Bạn không thể chia sẻ task cho chính mình.", 400);
+            throw new AppException("Bạn không thể chia sẻ công việc cho chính mình.", 400);
         }
 
         var existing = _unitOfWork.TaskShares.Query()
@@ -62,7 +62,7 @@ public class TaskShareService : ITaskShareService
                 existing.SharedWithUserId,
                 existing.TaskId,
                 NotificationType.TaskShared,
-                $"Bạn có lời mời chia sẻ task: {task.Title}",
+                $"Bạn có lời mời chia sẻ công việc: {task.Title}",
                 cancellationToken);
             return existingDto;
         }
@@ -88,7 +88,7 @@ public class TaskShareService : ITaskShareService
             share.SharedWithUserId,
             share.TaskId,
             NotificationType.TaskShared,
-            $"Bạn có lời mời chia sẻ task: {task.Title}",
+            $"Bạn có lời mời chia sẻ công việc: {task.Title}",
             cancellationToken);
         return dto;
     }
@@ -103,7 +103,7 @@ public class TaskShareService : ITaskShareService
 
         if (!exists)
         {
-            throw new NotFoundException("Không tìm thấy task.");
+            throw new NotFoundException("Không tìm thấy công việc.");
         }
 
         var shares = _unitOfWork.TaskShares.Query()

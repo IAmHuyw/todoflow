@@ -32,7 +32,7 @@ public class CategoriesController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var category = await _categoryService.CreateAsync(CurrentUserId, request, cancellationToken);
-        return OkResponse(category, "Category created.");
+        return OkResponse(category, "Đã tạo danh mục.");
     }
 
     // Updates a category owned by the authenticated user.
@@ -43,7 +43,7 @@ public class CategoriesController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var category = await _categoryService.UpdateAsync(CurrentUserId, id, request, cancellationToken);
-        return OkResponse(category, "Category updated.");
+        return OkResponse(category, "Đã cập nhật danh mục.");
     }
 
     // Deletes a category and clears it from existing tasks.
@@ -51,6 +51,6 @@ public class CategoriesController : ApiControllerBase
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id, CancellationToken cancellationToken)
     {
         await _categoryService.DeleteAsync(CurrentUserId, id, cancellationToken);
-        return OkMessage("Category deleted.");
+        return OkMessage("Đã xoá danh mục.");
     }
 }

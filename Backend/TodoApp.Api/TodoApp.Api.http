@@ -4,8 +4,8 @@ POST {{TodoApp.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 
 {
-  "emailOrUsername": "demo@todo.app",
-  "password": "demo1234"
+  "emailOrUsername": "user@example.com",
+  "password": "your-password"
 }
 
 ###

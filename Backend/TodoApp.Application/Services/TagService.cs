@@ -41,7 +41,7 @@ public class TagService : ITagService
         var name = NormalizeTagName(request.Name);
         if (_unitOfWork.Tags.Query().Any(tag => tag.UserId == userId && tag.Name.ToLower() == name))
         {
-            throw new AppException("Tên tag đã tồn tại.", 409);
+            throw new AppException("Tên nhãn đã tồn tại.", 409);
         }
 
         var tag = new Tag
@@ -60,7 +60,7 @@ public class TagService : ITagService
     {
         var tag = _unitOfWork.Tags.Query()
             .FirstOrDefault(tag => tag.Id == id && tag.UserId == userId)
-            ?? throw new NotFoundException("Không tìm thấy tag.");
+            ?? throw new NotFoundException("Không tìm thấy nhãn.");
 
         _unitOfWork.Tags.Remove(tag);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -25,7 +25,7 @@ public class TaskSharesController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var share = await _taskShareService.RespondAsync(CurrentUserId, id, request, cancellationToken);
-        return OkResponse(share, "Share response saved.");
+        return OkResponse(share, "Đã lưu phản hồi chia sẻ.");
     }
 
     // Changes share permission for a task owned by the current user.
@@ -36,7 +36,7 @@ public class TaskSharesController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var share = await _taskShareService.ChangePermissionAsync(CurrentUserId, id, request, cancellationToken);
-        return OkResponse(share, "Share permission updated.");
+        return OkResponse(share, "Đã cập nhật quyền chia sẻ.");
     }
 
     // Revokes a share from a task owned by the current user.
@@ -46,6 +46,6 @@ public class TaskSharesController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         await _taskShareService.RevokeAsync(CurrentUserId, id, cancellationToken);
-        return OkMessage("Share revoked.");
+        return OkMessage("Đã thu hồi chia sẻ.");
     }
 }

@@ -2,8 +2,11 @@ import { useState, useMemo } from "react";
 import { format, isPast, isToday } from "date-fns";
 import {
   Calendar as CalendarIcon,
+  Check,
   MoreHorizontal,
+  Pencil,
   Plus,
+  Repeat,
   Share2,
   Trash2,
   Bell,
@@ -36,9 +39,22 @@ const priorityColor: Record<Priority, string> = {
 };
 
 const statusLabel: Record<Status, string> = {
-  todo: "Todo",
+  todo: "Cần làm",
   in_progress: "Đang làm",
   done: "Xong",
+};
+
+const priorityLabel: Record<Priority, string> = {
+  low: "Thấp",
+  medium: "Trung bình",
+  high: "Cao",
+};
+
+const recurrenceLabel = {
+  none: "",
+  daily: "Lặp ngày",
+  weekly: "Lặp tuần",
+  monthly: "Lặp tháng",
 };
 
 export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean }) {
@@ -47,6 +63,9 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
   const [sharing, setSharing] = useState(false);
   const [reminding, setReminding] = useState(false);
   const [newSub, setNewSub] = useState("");
+  const [newSubNote, setNewSubNote] = useState("");
+  const [editingSubId, setEditingSubId] = useState<string | null>(null);
+  const [editingSubNote, setEditingSubNote] = useState("");
 
   const category = useTodoStore((s) =>
     s.categories.find((c) => c.id === task.categoryId),
@@ -56,6 +75,7 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
   const setStatus = useTodoStore((s) => s.setTaskStatus);
   const deleteTask = useTodoStore((s) => s.deleteTask);
   const addSubtask = useTodoStore((s) => s.addSubtask);
+  const updateSubtask = useTodoStore((s) => s.updateSubtask);
   const toggleSubtask = useTodoStore((s) => s.toggleSubtask);
   const deleteSubtask = useTodoStore((s) => s.deleteSubtask);
 
@@ -114,7 +134,7 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
             onCheckedChange={(v) =>
               void runAction(
                 setStatus(task.id, v === true ? "done" : "todo"),
-                "Không đổi được trạng thái task",
+                "Không đổi được trạng thái công việc",
               )
             }
             className="mt-1"
@@ -165,17 +185,17 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                       onClick={() =>
                         void runAction(
                           setStatus(task.id, "todo"),
-                          "Không đổi được trạng thái task",
+                          "Không đổi được trạng thái công việc",
                         )
                       }
                     >
-                      Đánh dấu: Todo
+                      Đánh dấu: Cần làm
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() =>
                         void runAction(
                           setStatus(task.id, "in_progress"),
-                          "Không đổi được trạng thái task",
+                          "Không đổi được trạng thái công việc",
                         )
                       }
                     >
@@ -185,7 +205,7 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                       onClick={() =>
                         void runAction(
                           setStatus(task.id, "done"),
-                          "Không đổi được trạng thái task",
+                          "Không đổi được trạng thái công việc",
                         )
                       }
                     >
@@ -197,7 +217,7 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                         <DropdownMenuItem
                           className="text-red-600 focus:text-red-600"
                           onClick={() =>
-                            void runAction(deleteTask(task.id), "Không xoá được task")
+                            void runAction(deleteTask(task.id), "Không xoá được công việc")
                           }
                         >
                           <Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -239,12 +259,18 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                   priorityColor[task.priority],
                 )}
               >
-                {task.priority}
+                {priorityLabel[task.priority]}
               </span>
               <Badge variant="outline" className="text-xs font-normal">
                 {statusLabel[task.status]}
               </Badge>
               {dueBadge}
+              {task.recurrenceType !== "none" && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">
+                  <Repeat className="h-3 w-3" />
+                  {recurrenceLabel[task.recurrenceType]}
+                </span>
+              )}
               {tags.map((t) => (
                 <Badge key={t.id} variant="secondary" className="text-xs font-normal">
                   #{t.name}
@@ -260,7 +286,7 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                   ) : (
                     <ChevronRight className="h-3 w-3" />
                   )}
-                  {subDone}/{subs.length} subtasks
+                  {subDone}/{subs.length} việc con
                 </button>
               )}
             </div>
@@ -268,30 +294,85 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
             {(expanded || (subs.length === 0 && !isShared)) && (
               <div className="mt-3 space-y-1.5 border-t border-border pt-3">
                 {subs.map((s) => (
-                  <div key={s.id} className="group/sub flex items-center gap-2">
+                  <div key={s.id} className="group/sub flex items-start gap-2">
                     <Checkbox
                       checked={s.isCompleted}
                       onCheckedChange={() =>
                         void runAction(
                           toggleSubtask(s.id),
-                          "Không cập nhật được subtask",
+                          "Không cập nhật được việc con",
                         )
                       }
+                      className="mt-0.5"
                     />
-                    <span
-                      className={cn(
-                        "flex-1 text-sm",
-                        s.isCompleted && "line-through text-muted-foreground",
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "block text-sm",
+                          s.isCompleted && "line-through text-muted-foreground",
+                        )}
+                      >
+                        {s.title}
+                      </span>
+                      {editingSubId === s.id ? (
+                        <form
+                          className="mt-1 flex items-center gap-2"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void runAction(
+                              updateSubtask(s.id, { note: editingSubNote }).then(() => {
+                                setEditingSubId(null);
+                                setEditingSubNote("");
+                              }),
+                              "Không cập nhật được ghi chú việc con",
+                            );
+                          }}
+                        >
+                          <Input
+                            value={editingSubNote}
+                            onChange={(e) => setEditingSubNote(e.target.value)}
+                            placeholder="Ghi chú việc con..."
+                            className="h-7 text-xs"
+                          />
+                          <Button type="submit" size="icon" className="h-7 w-7">
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                        </form>
+                      ) : (
+                        s.note && (
+                          <button
+                            type="button"
+                            className="mt-0.5 block max-w-full truncate text-left text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => {
+                              setEditingSubId(s.id);
+                              setEditingSubNote(s.note);
+                            }}
+                          >
+                            {s.note}
+                          </button>
+                        )
                       )}
-                    >
-                      {s.title}
-                    </span>
+                    </div>
+                    {editingSubId !== s.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover/sub:opacity-100"
+                        onClick={() => {
+                          setEditingSubId(s.id);
+                          setEditingSubNote(s.note);
+                        }}
+                        title="Ghi chú việc con"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 opacity-0 group-hover/sub:opacity-100"
                       onClick={() =>
-                        void runAction(deleteSubtask(s.id), "Không xoá được subtask")
+                        void runAction(deleteSubtask(s.id), "Không xoá được việc con")
                       }
                     >
                       <Trash2 className="h-3 w-3" />
@@ -305,22 +386,33 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                       const title = newSub.trim();
                       if (!title) return;
                       void runAction(
-                        addSubtask(task.id, title).then(() => {
+                        addSubtask(task.id, title, newSubNote.trim()).then(() => {
                           setNewSub("");
+                          setNewSubNote("");
                           setExpanded(true);
                         }),
-                        "Không thêm được subtask",
+                        "Không thêm được việc con",
                       );
                     }}
-                    className="flex items-center gap-2"
+                    className="space-y-2"
                   >
-                    <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                      value={newSub}
-                      onChange={(e) => setNewSub(e.target.value)}
-                      placeholder="Thêm subtask..."
-                      className="h-7 border-none px-0 text-sm shadow-none focus-visible:ring-0"
-                    />
+                    <div className="flex items-center gap-2">
+                      <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        value={newSub}
+                        onChange={(e) => setNewSub(e.target.value)}
+                        placeholder="Thêm việc con..."
+                        className="h-7 border-none px-0 text-sm shadow-none focus-visible:ring-0"
+                      />
+                    </div>
+                    {newSub.trim() && (
+                      <Input
+                        value={newSubNote}
+                        onChange={(e) => setNewSubNote(e.target.value)}
+                        placeholder="Ghi chú cho việc con..."
+                        className="ml-5 h-7 text-xs"
+                      />
+                    )}
                   </form>
                 )}
               </div>

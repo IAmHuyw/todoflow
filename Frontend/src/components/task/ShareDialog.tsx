@@ -73,19 +73,17 @@ export function ShareDialog({ open, onOpenChange, taskId }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Chia sẻ task</DialogTitle>
-          <DialogDescription>
-            Mời thành viên khác cộng tác. Thử với <span className="font-mono">alex</span>.
-          </DialogDescription>
+          <DialogTitle>Chia sẻ công việc</DialogTitle>
+          <DialogDescription>Mời thành viên khác cộng tác bằng email hoặc tên đăng nhập.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-2">
-            <Label>Email hoặc username</Label>
+            <Label>Email hoặc tên đăng nhập</Label>
             <div className="flex gap-2">
               <Input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="alex"
+                placeholder="email@example.com"
                 required
               />
               <Select
@@ -96,8 +94,8 @@ export function ShareDialog({ open, onOpenChange, taskId }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="view">View</SelectItem>
-                  <SelectItem value="edit">Edit</SelectItem>
+                  <SelectItem value="view">Xem</SelectItem>
+                  <SelectItem value="edit">Sửa</SelectItem>
                 </SelectContent>
               </Select>
               <Button type="submit">Mời</Button>
@@ -111,7 +109,7 @@ export function ShareDialog({ open, onOpenChange, taskId }: Props) {
           )}
           {shares.map((sh) => {
             const u = users.find((x) => x.id === sh.sharedWithUserId);
-            const username = sh.sharedWithUsername ?? u?.username ?? "User";
+            const username = sh.sharedWithUsername ?? u?.username ?? "Người dùng";
             const email = sh.sharedWithEmail ?? u?.email ?? "";
             return (
               <div
@@ -138,7 +136,7 @@ export function ShareDialog({ open, onOpenChange, taskId }: Props) {
                     }
                     className="text-xs"
                   >
-                    {sh.status}
+                    {shareStatusLabel[sh.status]}
                   </Badge>
                   <Select
                     value={sh.permission}
@@ -150,8 +148,8 @@ export function ShareDialog({ open, onOpenChange, taskId }: Props) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="view">View</SelectItem>
-                      <SelectItem value="edit">Edit</SelectItem>
+                      <SelectItem value="view">Xem</SelectItem>
+                      <SelectItem value="edit">Sửa</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
@@ -176,3 +174,9 @@ export function ShareDialog({ open, onOpenChange, taskId }: Props) {
     </Dialog>
   );
 }
+
+const shareStatusLabel = {
+  pending: "Đang chờ",
+  accepted: "Đã chấp nhận",
+  rejected: "Đã từ chối",
+};
