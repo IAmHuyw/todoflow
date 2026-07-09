@@ -60,6 +60,26 @@ public class AuthController : ApiControllerBase
         return OkMessage("Đăng xuất thành công.");
     }
 
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> ForgotPassword(
+        ForgotPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _authService.ForgotPasswordAsync(request, cancellationToken);
+        return OkMessage("Mã OTP đã được gửi tới email của bạn.");
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> ResetPassword(
+        ResetPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _authService.ResetPasswordAsync(request, cancellationToken);
+        return OkMessage("Đặt lại mật khẩu thành công.");
+    }
+
     // Reads the current user from the JWT claim and returns profile data.
     [HttpGet("me")]
     [Authorize]

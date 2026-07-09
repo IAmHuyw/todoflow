@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PasswordResetOtp> PasswordResetOtps => Set<PasswordResetOtp>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<TodoTask> Tasks => Set<TodoTask>();
     public DbSet<SubTask> SubTasks => Set<SubTask>();
@@ -45,6 +46,18 @@ public class AppDbContext : DbContext
             entity.HasOne(token => token.User)
                 .WithMany(user => user.RefreshTokens)
                 .HasForeignKey(token => token.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PasswordResetOtp>(entity =>
+        {
+            entity.ToTable("PasswordResetOtps");
+            entity.HasKey(otp => otp.Id);
+            entity.Property(otp => otp.OtpHash).HasMaxLength(128).IsRequired();
+            entity.HasIndex(otp => new { otp.UserId, otp.ExpiresAt });
+            entity.HasOne(otp => otp.User)
+                .WithMany(user => user.PasswordResetOtps)
+                .HasForeignKey(otp => otp.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

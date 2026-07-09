@@ -14,6 +14,7 @@ public class UnitOfWork : IUnitOfWork
         _context = context;
         Users = new Repository<User>(context);
         RefreshTokens = new Repository<RefreshToken>(context);
+        PasswordResetOtps = new Repository<PasswordResetOtp>(context);
         Categories = new Repository<Category>(context);
         Tasks = new TaskRepository(context);
         SubTasks = new Repository<SubTask>(context);
@@ -26,6 +27,7 @@ public class UnitOfWork : IUnitOfWork
 
     public IRepository<User> Users { get; }
     public IRepository<RefreshToken> RefreshTokens { get; }
+    public IRepository<PasswordResetOtp> PasswordResetOtps { get; }
     public IRepository<Category> Categories { get; }
     public ITaskRepository Tasks { get; }
     public IRepository<SubTask> SubTasks { get; }

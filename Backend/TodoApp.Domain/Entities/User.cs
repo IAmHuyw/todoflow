@@ -12,6 +12,7 @@ public class User
     public ICollection<TodoTask> Tasks { get; set; } = new List<TodoTask>();
     public ICollection<Tag> Tags { get; set; } = new List<Tag>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<PasswordResetOtp> PasswordResetOtps { get; set; } = new List<PasswordResetOtp>();
     public ICollection<TaskShare> OwnedTaskShares { get; set; } = new List<TaskShare>();
     public ICollection<TaskShare> ReceivedTaskShares { get; set; } = new List<TaskShare>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();

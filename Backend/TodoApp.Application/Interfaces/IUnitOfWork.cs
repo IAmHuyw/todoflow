@@ -6,6 +6,7 @@ public interface IUnitOfWork
 {
     IRepository<User> Users { get; }
     IRepository<RefreshToken> RefreshTokens { get; }
+    IRepository<PasswordResetOtp> PasswordResetOtps { get; }
     IRepository<Category> Categories { get; }
     ITaskRepository Tasks { get; }
     IRepository<SubTask> SubTasks { get; }

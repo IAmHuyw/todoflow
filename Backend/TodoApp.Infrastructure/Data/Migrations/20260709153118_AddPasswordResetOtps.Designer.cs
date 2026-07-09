@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TodoApp.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using TodoApp.Infrastructure.Data;
 namespace TodoApp.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260709153118_AddPasswordResetOtps")]
+    partial class AddPasswordResetOtps
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -118,39 +121,6 @@ namespace TodoApp.Infrastructure.Data.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens", (string)null);
-                });
-
-            modelBuilder.Entity("TodoApp.Domain.Entities.PasswordResetOtp", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("AttemptCount")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("OtpHash")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<DateTime?>("UsedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "ExpiresAt");
-
-                    b.ToTable("PasswordResetOtps", (string)null);
                 });
 
             modelBuilder.Entity("TodoApp.Domain.Entities.SubTask", b =>
@@ -430,17 +400,6 @@ namespace TodoApp.Infrastructure.Data.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("TodoApp.Domain.Entities.PasswordResetOtp", b =>
-                {
-                    b.HasOne("TodoApp.Domain.Entities.User", "User")
-                        .WithMany("PasswordResetOtps")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("TodoApp.Domain.Entities.SubTask", b =>
                 {
                     b.HasOne("TodoApp.Domain.Entities.TodoTask", "Task")
@@ -568,8 +527,6 @@ namespace TodoApp.Infrastructure.Data.Migrations
                     b.Navigation("Notifications");
 
                     b.Navigation("OwnedTaskShares");
-
-                    b.Navigation("PasswordResetOtps");
 
                     b.Navigation("ReceivedTaskShares");
 

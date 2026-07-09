@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTodoStore } from "@/lib/todo-store";
+import { apiRequest } from "@/lib/api-client";
 import { toast } from "sonner";
 
 const searchSchema = z.object({
@@ -50,6 +51,13 @@ function AuthPage() {
     email: "",
     password: "",
   });
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetStep, setResetStep] = useState<"request" | "reset">("request");
+  const [resetForm, setResetForm] = useState({
+    email: "",
+    otp: "",
+    newPassword: "",
+  });
 
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +77,41 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   };
 
+  const submitForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await apiRequest("/api/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email: resetForm.email }),
+      });
+      toast.success("Mã OTP đã được gửi tới email của bạn");
+      setResetStep("reset");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không gửi được mã OTP");
+    }
+  };
+
+  const submitResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetForm.newPassword.length < 6) {
+      return toast.error("Mật khẩu mới tối thiểu 6 ký tự");
+    }
+
+    try {
+      await apiRequest("/api/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify(resetForm),
+      });
+      toast.success("Đặt lại mật khẩu thành công");
+      setLoginForm({ email: resetForm.email, password: "" });
+      setForgotMode(false);
+      setResetStep("request");
+      setResetForm({ email: "", otp: "", newPassword: "" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không đặt lại được mật khẩu");
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
       <div className="w-full max-w-md">
@@ -82,6 +125,93 @@ function AuthPage() {
           TodoFlow
         </Link>
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          {forgotMode ? (
+            <div>
+              <div className="mb-5">
+                <h1 className="text-xl font-semibold tracking-tight">Quên mật khẩu</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Nhập email tài khoản để nhận mã OTP đặt lại mật khẩu.
+                </p>
+              </div>
+              {resetStep === "request" ? (
+                <form onSubmit={submitForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      value={resetForm.email}
+                      onChange={(e) =>
+                        setResetForm({ ...resetForm, email: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full">
+                    Gửi mã OTP
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={submitResetPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email">Email</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      value={resetForm.email}
+                      onChange={(e) =>
+                        setResetForm({ ...resetForm, email: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-otp">Mã OTP</Label>
+                    <Input
+                      id="reset-otp"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={resetForm.otp}
+                      onChange={(e) =>
+                        setResetForm({
+                          ...resetForm,
+                          otp: e.target.value.replace(/\D/g, "").slice(0, 6),
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-password">Mật khẩu mới</Label>
+                    <Input
+                      id="reset-password"
+                      type="password"
+                      value={resetForm.newPassword}
+                      onChange={(e) =>
+                        setResetForm({ ...resetForm, newPassword: e.target.value })
+                      }
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full">
+                    Đặt lại mật khẩu
+                  </Button>
+                </form>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-4 w-full"
+                onClick={() => {
+                  setForgotMode(false);
+                  setResetStep("request");
+                }}
+              >
+                Quay lại đăng nhập
+              </Button>
+            </div>
+          ) : (
           <Tabs defaultValue={mode === "register" ? "register" : "login"}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Đăng nhập</TabsTrigger>
@@ -115,6 +245,21 @@ function AuthPage() {
                 </div>
                 <Button type="submit" className="w-full">
                   Đăng nhập
+                </Button>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="w-full px-0"
+                  onClick={() => {
+                    setResetForm({
+                      email: loginForm.email,
+                      otp: "",
+                      newPassword: "",
+                    });
+                    setForgotMode(true);
+                  }}
+                >
+                  Quên mật khẩu?
                 </Button>
               </form>
             </TabsContent>
@@ -172,6 +317,7 @@ function AuthPage() {
               </form>
             </TabsContent>
           </Tabs>
+          )}
         </div>
       </div>
     </div>

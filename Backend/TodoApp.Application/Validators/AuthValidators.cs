@@ -46,3 +46,32 @@ public class LogoutRequestValidator : AbstractValidator<LogoutRequest>
         RuleFor(x => x.RefreshToken).NotEmpty().WithMessage("Refresh token là bắt buộc.");
     }
 }
+
+public class ForgotPasswordRequestValidator : AbstractValidator<ForgotPasswordRequest>
+{
+    public ForgotPasswordRequestValidator()
+    {
+        RuleFor(x => x.Email)
+            .NotEmpty().WithMessage("Email là bắt buộc.")
+            .EmailAddress().WithMessage("Email không hợp lệ.")
+            .MaximumLength(100).WithMessage("Email không được vượt quá 100 ký tự.");
+    }
+}
+
+public class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequest>
+{
+    public ResetPasswordRequestValidator()
+    {
+        RuleFor(x => x.Email)
+            .NotEmpty().WithMessage("Email là bắt buộc.")
+            .EmailAddress().WithMessage("Email không hợp lệ.")
+            .MaximumLength(100).WithMessage("Email không được vượt quá 100 ký tự.");
+        RuleFor(x => x.Otp)
+            .NotEmpty().WithMessage("Mã OTP là bắt buộc.")
+            .Matches("^\\d{6}$").WithMessage("Mã OTP phải gồm 6 chữ số.");
+        RuleFor(x => x.NewPassword)
+            .NotEmpty().WithMessage("Mật khẩu mới là bắt buộc.")
+            .MinimumLength(6).WithMessage("Mật khẩu mới phải có ít nhất 6 ký tự.")
+            .MaximumLength(100).WithMessage("Mật khẩu mới không được vượt quá 100 ký tự.");
+    }
+}

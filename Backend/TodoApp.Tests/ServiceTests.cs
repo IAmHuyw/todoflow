@@ -187,10 +187,13 @@ public class ServiceTests
             new UnitOfWork(dbContext),
             new BCryptPasswordHasher(),
             new FakeTokenService(),
+            new NoopEmailSender(),
             new RegisterRequestValidator(),
             new LoginRequestValidator(),
             new RefreshTokenRequestValidator(),
-            new LogoutRequestValidator());
+            new LogoutRequestValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator());
 
     private static CategoryService CreateCategoryService(AppDbContext dbContext) =>
         new(new UnitOfWork(dbContext), new CreateCategoryRequestValidator(), new UpdateCategoryRequestValidator());
