@@ -8,6 +8,32 @@ TodoFlow là app quản lý task full-stack gồm React frontend và ASP.NET Cor
 - Backend: ASP.NET Core Web API .NET 10, EF Core, SQL Server, JWT Bearer, SignalR.
 - Database local: SQL Server 2022 qua Docker Compose.
 
+## Cấu trúc dự án
+
+```text
+TodoFlow/
+├── Backend/
+│   ├── Api/                 # Controller, middleware, SignalR, cấu hình và điểm khởi động API
+│   ├── Application/         # Service nghiệp vụ, DTO, interface và validation
+│   ├── Domain/              # Entity và enum của nghiệp vụ cốt lõi
+│   ├── Infrastructure/      # EF Core, SQL Server, repository, JWT, BCrypt và SMTP
+│   ├── Tests/               # Unit test cho các service backend
+│   ├── Backend.sln          # Solution backend dùng để build và test
+│   └── docker-compose.yml   # SQL Server chạy bằng Docker
+├── Frontend/
+│   ├── public/              # Favicon và tài nguyên tĩnh
+│   ├── src/
+│   │   ├── components/      # Component giao diện và các dialog của task
+│   │   ├── hooks/           # React hooks dùng chung
+│   │   ├── lib/             # API client, Zustand store, SignalR và kiểu dữ liệu
+│   │   └── routes/          # Các trang và cấu hình route của ứng dụng
+│   └── package.json         # Dependency và script của frontend
+├── .gitignore
+└── README.md
+```
+
+Luồng phụ thuộc backend: `Api` gọi `Application`; `Infrastructure` triển khai các interface của `Application`; `Application` và `Infrastructure` sử dụng mô hình trong `Domain`.
+
 ## Chức năng đã có
 
 - Phase 1-3: đăng ký, đăng nhập, refresh token, CRUD task/category/subtask/tag, lọc/sắp xếp/phân trang, soft delete, Swagger, validation tiếng Việt.
@@ -33,11 +59,11 @@ Server=localhost,1433;Database=TodoFlowDb;User Id=sa;Password=Admin123A@;TrustSe
 ## Chạy backend
 
 ```bash
-dotnet restore Backend/TodoApp.Backend.sln
+dotnet restore Backend/Backend.sln
 dotnet ef database update \
-  --project Backend/TodoApp.Infrastructure \
-  --startup-project Backend/TodoApp.Api
-dotnet run --project Backend/TodoApp.Api --urls http://localhost:5050
+  --project Backend/Infrastructure \
+  --startup-project Backend/Api
+dotnet run --project Backend/Api --urls http://localhost:5050
 ```
 
 Swagger: `http://localhost:5050/swagger`
@@ -47,7 +73,7 @@ Swagger: `http://localhost:5050/swagger`
 Không đưa mật khẩu Gmail hoặc app password vào `appsettings.json`. Dùng user-secrets trong project API:
 
 ```bash
-cd Backend/TodoApp.Api
+cd Backend/Api
 dotnet user-secrets init
 dotnet user-secrets set "Smtp:Enabled" "true"
 dotnet user-secrets set "Smtp:Username" "your-gmail@gmail.com"
@@ -72,7 +98,7 @@ Frontend mặc định gọi backend tại `http://localhost:5050`. Trên macOS,
 ## Kiểm tra
 
 ```bash
-dotnet build Backend/TodoApp.Backend.sln
-dotnet test Backend/TodoApp.Backend.sln
+dotnet build Backend/Backend.sln
+dotnet test Backend/Backend.sln
 cd Frontend && npm run build
 ```

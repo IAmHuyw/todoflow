@@ -1,0 +1,17 @@
+@Api_HostAddress = http://localhost:5050
+
+POST {{Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUsername": "user@example.com",
+  "password": "your-password"
+}
+
+###
+
+GET {{Api_HostAddress}}/api/tasks
+Accept: application/json
+Authorization: Bearer {{access_token}}
+
+###
