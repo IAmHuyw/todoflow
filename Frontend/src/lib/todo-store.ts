@@ -1,11 +1,5 @@
 import { create } from "zustand";
-import {
-  apiRequest,
-  clearTokens,
-  getAccessToken,
-  getRefreshToken,
-  setTokens,
-} from "./api-client";
+import { apiRequest, clearTokens, getAccessToken, getRefreshToken, setTokens } from "./api-client";
 import type {
   Category,
   Notification,
@@ -21,11 +15,7 @@ import type {
   TaskShare,
   User,
 } from "./todo-types";
-import {
-  startRealtime,
-  stopRealtime,
-  syncRealtimeTaskGroups,
-} from "./realtime";
+import { startRealtime, stopRealtime, syncRealtimeTaskGroups } from "./realtime";
 
 interface AuthResponse {
   user: User;
@@ -65,6 +55,12 @@ interface TaskOrderItem {
   sortOrder: number;
 }
 
+export interface UpdateProfileInput {
+  fullName: string | null;
+  phoneNumber: string | null;
+  dateOfBirth: string | null;
+}
+
 interface TodoState {
   users: User[];
   categories: Category[];
@@ -89,6 +85,7 @@ interface TodoState {
     password: string;
   }) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
+  updateProfile: (input: UpdateProfileInput) => Promise<void>;
   addCategory: (name: string, color: string) => Promise<void>;
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -97,13 +94,7 @@ interface TodoState {
   addTask: (
     input: Omit<
       Task,
-      | "id"
-      | "userId"
-      | "isDeleted"
-      | "createdAt"
-      | "updatedAt"
-      | "recurrenceParentId"
-      | "sortOrder"
+      "id" | "userId" | "isDeleted" | "createdAt" | "updatedAt" | "recurrenceParentId" | "sortOrder"
     >,
   ) => Promise<string | null>;
   updateTask: (id: string, patch: Partial<Task>) => Promise<void>;
@@ -111,7 +102,10 @@ interface TodoState {
   setTaskStatus: (id: string, status: Status) => Promise<void>;
   reorderTasks: (items: TaskOrderItem[]) => Promise<void>;
   addSubtask: (taskId: string, title: string, note?: string) => Promise<void>;
-  updateSubtask: (id: string, patch: Partial<Pick<SubTask, "title" | "note" | "isCompleted">>) => Promise<void>;
+  updateSubtask: (
+    id: string,
+    patch: Partial<Pick<SubTask, "title" | "note" | "isCompleted">>,
+  ) => Promise<void>;
   toggleSubtask: (id: string) => Promise<void>;
   deleteSubtask: (id: string) => Promise<void>;
   shareTask: (
@@ -126,6 +120,8 @@ interface TodoState {
   deleteReminder: (id: string) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  deleteAllNotifications: () => Promise<void>;
 }
 
 export const useTodoStore = create<TodoState>((set, get) => ({
@@ -311,6 +307,16 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     });
   },
 
+  updateProfile: async (input) => {
+    const user = await apiRequest<User>("/api/auth/me", {
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
+    set({
+      users: get().users.map((item) => (item.id === user.id ? user : item)),
+    });
+  },
+
   addCategory: async (name, color) => {
     const category = await apiRequest<Category>("/api/categories", {
       method: "POST",
@@ -420,9 +426,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     await apiRequest(`/api/tasks/${id}`, { method: "DELETE" });
     set({
       tasks: get().tasks.map((task) =>
-        task.id === id
-          ? { ...task, isDeleted: true, updatedAt: new Date().toISOString() }
-          : task,
+        task.id === id ? { ...task, isDeleted: true, updatedAt: new Date().toISOString() } : task,
       ),
       subtasks: get().subtasks.filter((subtask) => subtask.taskId !== id),
     });
@@ -533,12 +537,25 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       ),
     });
   },
+  deleteNotification: async (id) => {
+    await apiRequest(`/api/notifications/${id}`, { method: "DELETE" });
+    set({
+      notifications: get().notifications.filter((notification) => notification.id !== id),
+    });
+  },
+  deleteAllNotifications: async () => {
+    const userId = get().currentUserId;
+    await apiRequest("/api/notifications", { method: "DELETE" });
+    set({
+      notifications: get().notifications.filter((notification) => notification.userId !== userId),
+    });
+  },
 }));
 
 export function useCurrentUser() {
   return useTodoStore((state) =>
     state.currentUserId
-      ? state.users.find((user) => user.id === state.currentUserId) ?? null
+      ? (state.users.find((user) => user.id === state.currentUserId) ?? null)
       : null,
   );
 }
@@ -581,10 +598,7 @@ function upsertTask(
     tasks: exists
       ? get().tasks.map((item) => (item.id === task.id ? task : item))
       : [task, ...get().tasks],
-    subtasks: [
-      ...get().subtasks.filter((subtask) => subtask.taskId !== task.id),
-      ...subtasks,
-    ],
+    subtasks: [...get().subtasks.filter((subtask) => subtask.taskId !== task.id), ...subtasks],
   });
 }
 
@@ -615,9 +629,7 @@ function upsertNotification(
   const exists = get().notifications.some((item) => item.id === notification.id);
   set({
     notifications: exists
-      ? get().notifications.map((item) =>
-          item.id === notification.id ? notification : item,
-        )
+      ? get().notifications.map((item) => (item.id === notification.id ? notification : item))
       : [notification, ...get().notifications],
   });
 }

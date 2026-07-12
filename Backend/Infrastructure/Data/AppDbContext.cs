@@ -32,6 +32,9 @@ public class AppDbContext : DbContext
             entity.HasKey(user => user.Id);
             entity.Property(user => user.Username).HasMaxLength(50).IsRequired();
             entity.Property(user => user.Email).HasMaxLength(100).IsRequired();
+            entity.Property(user => user.FullName).HasMaxLength(100);
+            entity.Property(user => user.PhoneNumber).HasMaxLength(16);
+            entity.Property(user => user.DateOfBirth).HasColumnType("date");
             entity.Property(user => user.PasswordHash).HasMaxLength(255).IsRequired();
             entity.HasIndex(user => user.Username).IsUnique();
             entity.HasIndex(user => user.Email).IsUnique();

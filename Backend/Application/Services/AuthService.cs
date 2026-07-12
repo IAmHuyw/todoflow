@@ -20,6 +20,7 @@ public class AuthService : IAuthService
     private readonly IValidator<LogoutRequest> _logoutValidator;
     private readonly IValidator<ForgotPasswordRequest> _forgotPasswordValidator;
     private readonly IValidator<ResetPasswordRequest> _resetPasswordValidator;
+    private readonly IValidator<UpdateProfileRequest> _updateProfileValidator;
 
     public AuthService(
         IUnitOfWork unitOfWork,
@@ -31,7 +32,8 @@ public class AuthService : IAuthService
         IValidator<RefreshTokenRequest> refreshValidator,
         IValidator<LogoutRequest> logoutValidator,
         IValidator<ForgotPasswordRequest> forgotPasswordValidator,
-        IValidator<ResetPasswordRequest> resetPasswordValidator)
+        IValidator<ResetPasswordRequest> resetPasswordValidator,
+        IValidator<UpdateProfileRequest> updateProfileValidator)
     {
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
@@ -43,6 +45,7 @@ public class AuthService : IAuthService
         _logoutValidator = logoutValidator;
         _forgotPasswordValidator = forgotPasswordValidator;
         _resetPasswordValidator = resetPasswordValidator;
+        _updateProfileValidator = updateProfileValidator;
     }
 
     public async Task<AuthResponse> RegisterAsync(
@@ -253,6 +256,24 @@ public class AuthService : IAuthService
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy người dùng.");
 
+        return DtoMapper.ToDto(user);
+    }
+
+    public async Task<UserDto> UpdateProfileAsync(
+        Guid userId,
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        await _updateProfileValidator.EnsureValidAsync(request, cancellationToken);
+
+        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy người dùng.");
+
+        user.FullName = ProfileInputNormalizer.NormalizeOptional(request.FullName);
+        user.PhoneNumber = ProfileInputNormalizer.NormalizePhoneNumber(request.PhoneNumber);
+        user.DateOfBirth = request.DateOfBirth;
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return DtoMapper.ToDto(user);
     }
 

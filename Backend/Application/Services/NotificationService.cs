@@ -92,4 +92,28 @@ public class NotificationService : INotificationService
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
+    {
+        var notification = _unitOfWork.Notifications.Query()
+            .FirstOrDefault(item => item.Id == id && item.UserId == userId)
+            ?? throw new NotFoundException("Không tìm thấy thông báo.");
+
+        _unitOfWork.Notifications.Remove(notification);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteAllAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var notifications = _unitOfWork.Notifications.Query()
+            .Where(notification => notification.UserId == userId)
+            .ToArray();
+
+        foreach (var notification in notifications)
+        {
+            _unitOfWork.Notifications.Remove(notification);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
 }

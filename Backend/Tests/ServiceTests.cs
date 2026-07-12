@@ -61,6 +61,96 @@ public class ServiceTests
     }
 
     [Fact]
+    public async Task Auth_profile_updates_normalizes_and_clears_optional_fields()
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var auth = CreateAuthService(dbContext);
+
+        var updated = await auth.UpdateProfileAsync(userId, new UpdateProfileRequest
+        {
+            FullName = "  Nguyễn Văn A  ",
+            PhoneNumber = "+84 (901) 234-567",
+            DateOfBirth = new DateOnly(2005, 3, 12)
+        });
+
+        Assert.Equal("Nguyễn Văn A", updated.FullName);
+        Assert.Equal("+84901234567", updated.PhoneNumber);
+        Assert.Equal(new DateOnly(2005, 3, 12), updated.DateOfBirth);
+
+        var cleared = await auth.UpdateProfileAsync(userId, new UpdateProfileRequest
+        {
+            FullName = "   ",
+            PhoneNumber = "",
+            DateOfBirth = null
+        });
+
+        Assert.Null(cleared.FullName);
+        Assert.Null(cleared.PhoneNumber);
+        Assert.Null(cleared.DateOfBirth);
+        Assert.Null((await auth.GetMeAsync(userId)).FullName);
+    }
+
+    [Theory]
+    [InlineData("123")]
+    [InlineData("+84-abc-123")]
+    [InlineData("++84901234567")]
+    public async Task Auth_profile_rejects_invalid_phone_numbers(string phoneNumber)
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var auth = CreateAuthService(dbContext);
+
+        await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            auth.UpdateProfileAsync(userId, new UpdateProfileRequest { PhoneNumber = phoneNumber }));
+    }
+
+    [Fact]
+    public async Task Auth_profile_rejects_invalid_birth_dates_and_missing_user()
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var auth = CreateAuthService(dbContext);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            auth.UpdateProfileAsync(userId, new UpdateProfileRequest { DateOfBirth = today }));
+        await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            auth.UpdateProfileAsync(userId, new UpdateProfileRequest { DateOfBirth = today.AddYears(-121) }));
+        await Assert.ThrowsAsync<Application.Common.NotFoundException>(() =>
+            auth.UpdateProfileAsync(Guid.NewGuid(), new UpdateProfileRequest()));
+    }
+
+    [Fact]
+    public async Task Auth_login_and_refresh_return_profile_fields()
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var auth = CreateAuthService(dbContext);
+
+        await auth.UpdateProfileAsync(userId, new UpdateProfileRequest
+        {
+            FullName = "Nguyễn Văn A",
+            PhoneNumber = "+84901234567",
+            DateOfBirth = new DateOnly(2005, 3, 12)
+        });
+
+        var login = await auth.LoginAsync(new LoginRequest
+        {
+            EmailOrUsername = "testuser",
+            Password = "test1234"
+        });
+        var refreshed = await auth.RefreshTokenAsync(new RefreshTokenRequest
+        {
+            RefreshToken = login.RefreshToken
+        });
+
+        Assert.Equal("Nguyễn Văn A", login.User.FullName);
+        Assert.Equal("+84901234567", refreshed.User.PhoneNumber);
+        Assert.Equal(new DateOnly(2005, 3, 12), refreshed.User.DateOfBirth);
+    }
+
+    [Fact]
     public async Task Task_service_creates_updates_filters_and_soft_deletes_tasks()
     {
         await using var dbContext = CreateDbContext();
@@ -173,6 +263,42 @@ public class ServiceTests
         Assert.False(await dbContext.SubTasks.AnyAsync(item => item.Id == subTask.Id));
     }
 
+    [Fact]
+    public async Task Notification_service_deletes_one_and_all_notifications_for_current_user_only()
+    {
+        await using var dbContext = CreateDbContext();
+        var firstUserId = await SeedUserAsync(dbContext);
+        var secondUserId = await SeedUserAsync(dbContext);
+        var service = CreateNotificationService(dbContext);
+
+        var first = await service.CreateAsync(
+            firstUserId,
+            null,
+            NotificationType.TaskUpdated,
+            "Thông báo thứ nhất");
+        await service.CreateAsync(
+            firstUserId,
+            null,
+            NotificationType.TaskCompleted,
+            "Thông báo thứ hai");
+        var otherUserNotification = await service.CreateAsync(
+            secondUserId,
+            null,
+            NotificationType.TaskShared,
+            "Thông báo của người khác");
+
+        await service.DeleteAsync(firstUserId, first.Id);
+
+        Assert.False(await dbContext.Notifications.AnyAsync(item => item.Id == first.Id));
+        await Assert.ThrowsAsync<Application.Common.NotFoundException>(() =>
+            service.DeleteAsync(firstUserId, otherUserNotification.Id));
+
+        await service.DeleteAllAsync(firstUserId);
+
+        Assert.False(await dbContext.Notifications.AnyAsync(item => item.UserId == firstUserId));
+        Assert.True(await dbContext.Notifications.AnyAsync(item => item.Id == otherUserNotification.Id));
+    }
+
     private static AppDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -193,7 +319,8 @@ public class ServiceTests
             new RefreshTokenRequestValidator(),
             new LogoutRequestValidator(),
             new ForgotPasswordRequestValidator(),
-            new ResetPasswordRequestValidator());
+            new ResetPasswordRequestValidator(),
+            new UpdateProfileRequestValidator());
 
     private static CategoryService CreateCategoryService(AppDbContext dbContext) =>
         new(new UnitOfWork(dbContext), new CreateCategoryRequestValidator(), new UpdateCategoryRequestValidator());
@@ -208,6 +335,9 @@ public class ServiceTests
 
     private static SubTaskService CreateSubTaskService(AppDbContext dbContext) =>
         new(new UnitOfWork(dbContext), new CreateSubTaskRequestValidator(), new UpdateSubTaskRequestValidator());
+
+    private static NotificationService CreateNotificationService(AppDbContext dbContext) =>
+        new(new UnitOfWork(dbContext), new NoopRealtimeNotifier());
 
     private static async Task<Guid> SeedUserAsync(AppDbContext dbContext)
     {

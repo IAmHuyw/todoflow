@@ -12,6 +12,7 @@ public interface IAuthService
     Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
     Task ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
     Task<UserDto> GetMeAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<UserDto> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken = default);
 }
 
 public interface ICategoryService
@@ -63,6 +64,8 @@ public interface INotificationService
     Task<NotificationDto> CreateAsync(Guid userId, Guid? taskId, Domain.Enums.NotificationType type, string message, CancellationToken cancellationToken = default);
     Task MarkReadAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
     Task MarkAllReadAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
+    Task DeleteAllAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
 public interface IReminderService

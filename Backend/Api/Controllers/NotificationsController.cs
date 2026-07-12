@@ -44,4 +44,20 @@ public class NotificationsController : ApiControllerBase
         await _notificationService.MarkAllReadAsync(CurrentUserId, cancellationToken);
         return OkMessage("Đã đánh dấu tất cả thông báo là đã đọc.");
     }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        await _notificationService.DeleteAsync(CurrentUserId, id, cancellationToken);
+        return OkMessage("Đã xoá thông báo.");
+    }
+
+    [HttpDelete]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteAll(CancellationToken cancellationToken)
+    {
+        await _notificationService.DeleteAllAsync(CurrentUserId, cancellationToken);
+        return OkMessage("Đã xoá tất cả thông báo.");
+    }
 }

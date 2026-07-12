@@ -6,7 +6,14 @@ namespace Application.Services;
 internal static class DtoMapper
 {
     public static UserDto ToDto(User user) =>
-        new(user.Id, user.Username, user.Email, user.CreatedAt);
+        new(
+            user.Id,
+            user.Username,
+            user.Email,
+            user.FullName,
+            user.PhoneNumber,
+            user.DateOfBirth,
+            user.CreatedAt);
 
     public static CategoryDto ToDto(Category category) =>
         new(category.Id, category.UserId, category.Name, category.Color);

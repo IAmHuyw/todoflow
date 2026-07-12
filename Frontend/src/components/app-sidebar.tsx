@@ -40,13 +40,13 @@ export function AppSidebar() {
   const user = useCurrentUser();
   const logout = useTodoStore((s) => s.logout);
   const navigate = useNavigate();
-  const unread = useTodoStore((s) =>
-    s.notifications.filter((n) => n.userId === s.currentUserId && !n.isRead).length,
+  const unread = useTodoStore(
+    (s) => s.notifications.filter((n) => n.userId === s.currentUserId && !n.isRead).length,
   );
-  const sharedPending = useTodoStore((s) =>
-    s.shares.filter(
-      (sh) => sh.sharedWithUserId === s.currentUserId && sh.status === "pending",
-    ).length,
+  const sharedPending = useTodoStore(
+    (s) =>
+      s.shares.filter((sh) => sh.sharedWithUserId === s.currentUserId && sh.status === "pending")
+        .length,
   );
 
   const badgeFor = (url: string) => {
@@ -100,13 +100,18 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t border-border">
         <div className="flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:hidden">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-            {user?.username?.[0]?.toUpperCase() ?? "?"}
-          </div>
-          <div className="flex-1 overflow-hidden text-sm">
-            <div className="truncate font-medium">{user?.username}</div>
-            <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
-          </div>
+          <Link
+            to="/profile"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 transition-colors hover:bg-sidebar-accent"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+              {(user?.fullName || user?.username)?.[0]?.toUpperCase() ?? "?"}
+            </div>
+            <div className="min-w-0 flex-1 overflow-hidden text-sm">
+              <div className="truncate font-medium">{user?.fullName || user?.username}</div>
+              <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
+            </div>
+          </Link>
           <Button variant="ghost" size="icon" onClick={handleLogout} title="Đăng xuất">
             <LogOut className="h-4 w-4" />
           </Button>

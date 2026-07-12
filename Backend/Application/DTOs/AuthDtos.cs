@@ -35,7 +35,21 @@ public class ResetPasswordRequest
     public string NewPassword { get; set; } = string.Empty;
 }
 
-public record UserDto(Guid Id, string Username, string Email, DateTime CreatedAt);
+public class UpdateProfileRequest
+{
+    public string? FullName { get; set; }
+    public string? PhoneNumber { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
+}
+
+public record UserDto(
+    Guid Id,
+    string Username,
+    string Email,
+    string? FullName,
+    string? PhoneNumber,
+    DateOnly? DateOfBirth,
+    DateTime CreatedAt);
 
 public record AuthResponse(
     UserDto User,

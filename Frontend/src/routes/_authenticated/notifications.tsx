@@ -1,8 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Bell, Check, CheckCheck, Share2, Clock, CheckCircle2 } from "lucide-react";
-import { useMemo } from "react";
+import { Bell, Check, CheckCheck, Share2, Clock, CheckCircle2, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTodoStore } from "@/lib/todo-store";
@@ -27,14 +38,16 @@ function NotificationsPage() {
   const notifications = useMemo(
     () =>
       allNotifications
-      .filter((n) => n.userId === userId)
-      .sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      ),
+        .filter((n) => n.userId === userId)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [allNotifications, userId],
   );
   const markRead = useTodoStore((s) => s.markNotificationRead);
   const markAll = useTodoStore((s) => s.markAllNotificationsRead);
+  const deleteNotification = useTodoStore((s) => s.deleteNotification);
+  const deleteAllNotifications = useTodoStore((s) => s.deleteAllNotifications);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
   const unread = notifications.filter((n) => !n.isRead).length;
 
   const markOneRead = async (id: string) => {
@@ -53,6 +66,30 @@ function NotificationsPage() {
     }
   };
 
+  const deleteOne = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await deleteNotification(id);
+      toast.success("Đã xoá thông báo");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không xoá được thông báo");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const deleteAll = async () => {
+    setDeletingAll(true);
+    try {
+      await deleteAllNotifications();
+      toast.success("Đã xoá tất cả thông báo");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không xoá được tất cả thông báo");
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -62,11 +99,39 @@ function NotificationsPage() {
             {unread} chưa đọc · tổng {notifications.length}
           </p>
         </div>
-        {unread > 0 && (
-          <Button variant="outline" onClick={() => void markAllRead()}>
-            <CheckCheck className="mr-2 h-4 w-4" /> Đọc tất cả
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {unread > 0 && (
+            <Button variant="outline" onClick={() => void markAllRead()}>
+              <CheckCheck className="mr-2 h-4 w-4" /> Đọc tất cả
+            </Button>
+          )}
+          {notifications.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" disabled={deletingAll}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Xóa tất cả
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Xóa tất cả thông báo?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tất cả thông báo của bạn sẽ bị xóa vĩnh viễn. Thao tác này không thể hoàn tác.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Hủy</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => void deleteAll()}
+                  >
+                    Xóa tất cả
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -112,6 +177,36 @@ function NotificationsPage() {
                   <Check className="h-4 w-4" />
                 </Button>
               )}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    disabled={deletingId === n.id}
+                    aria-label="Xóa thông báo"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Xóa thông báo?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Thông báo này sẽ bị xóa vĩnh viễn. Thao tác này không thể hoàn tác.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Hủy</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => void deleteOne(n.id)}
+                    >
+                      Xóa
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           );
         })}

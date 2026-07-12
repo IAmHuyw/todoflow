@@ -88,4 +88,14 @@ public class AuthController : ApiControllerBase
         var user = await _authService.GetMeAsync(CurrentUserId, cancellationToken);
         return OkResponse(user);
     }
+
+    [HttpPut("me")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<UserDto>>> UpdateMe(
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await _authService.UpdateProfileAsync(CurrentUserId, request, cancellationToken);
+        return OkResponse(user, "Cập nhật hồ sơ thành công.");
+    }
 }

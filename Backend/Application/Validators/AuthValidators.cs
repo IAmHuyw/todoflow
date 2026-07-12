@@ -1,5 +1,6 @@
 using FluentValidation;
 using Application.DTOs;
+using Application.Services;
 
 namespace Application.Validators;
 
@@ -73,5 +74,31 @@ public class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequ
             .NotEmpty().WithMessage("Mật khẩu mới là bắt buộc.")
             .MinimumLength(6).WithMessage("Mật khẩu mới phải có ít nhất 6 ký tự.")
             .MaximumLength(100).WithMessage("Mật khẩu mới không được vượt quá 100 ký tự.");
+    }
+}
+
+public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
+{
+    public UpdateProfileRequestValidator()
+    {
+        RuleFor(x => x.FullName)
+            .MaximumLength(100).WithMessage("Họ tên không được vượt quá 100 ký tự.");
+        RuleFor(x => x.PhoneNumber)
+            .Must(ProfileInputNormalizer.IsValidPhoneNumber)
+            .WithMessage("Số điện thoại phải gồm 8 đến 15 chữ số và có thể bắt đầu bằng dấu +.");
+        RuleFor(x => x.DateOfBirth)
+            .Must(BeValidDateOfBirth)
+            .WithMessage("Ngày sinh phải trước ngày hiện tại và không quá 120 năm trước.");
+    }
+
+    private static bool BeValidDateOfBirth(DateOnly? value)
+    {
+        if (!value.HasValue)
+        {
+            return true;
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        return value.Value < today && value.Value >= today.AddYears(-120);
     }
 }
