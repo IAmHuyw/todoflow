@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -98,6 +99,30 @@ authenticationBuilder
                 }
 
                 return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!Guid.TryParse(userIdValue, out var userId))
+                {
+                    context.Fail("Token không chứa người dùng hợp lệ.");
+                    return;
+                }
+
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var user = await dbContext.Users.AsNoTracking()
+                    .FirstOrDefaultAsync(item => item.Id == userId, context.HttpContext.RequestAborted);
+                if (user is null || !user.IsActive)
+                {
+                    context.Fail("Tài khoản không còn hoạt động.");
+                    return;
+                }
+
+                if (context.Principal?.Identity is ClaimsIdentity identity &&
+                    !identity.HasClaim(ClaimTypes.Role, user.Role.ToString()))
+                {
+                    identity.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
+                }
             }
         };
     })

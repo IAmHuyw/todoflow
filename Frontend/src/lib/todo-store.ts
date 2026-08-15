@@ -8,6 +8,7 @@ import {
   setTokens,
 } from "./api-client";
 import type {
+  AdminUser,
   Category,
   Notification,
   Priority,
@@ -47,7 +48,7 @@ interface TaskShareDto extends Omit<TaskShare, "task"> {
   task?: TaskDto | null;
 }
 
-interface PagedResult<T> {
+export interface PagedResult<T> {
   items: T[];
   page: number;
   pageSize: number;
@@ -77,6 +78,13 @@ export interface UpdateProfileInput {
   dateOfBirth: string | null;
 }
 
+export interface AdminUserQuery {
+  search?: string;
+  isActive?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
 interface TodoState {
   users: User[];
   categories: Category[];
@@ -103,6 +111,8 @@ interface TodoState {
   }) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (input: UpdateProfileInput) => Promise<void>;
+  loadAdminUsers: (query?: AdminUserQuery) => Promise<PagedResult<AdminUser>>;
+  updateAdminUserStatus: (id: string, isActive: boolean) => Promise<AdminUser>;
   addCategory: (name: string, color: string) => Promise<void>;
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -408,6 +418,22 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       users: get().users.map((item) => (item.id === user.id ? user : item)),
     });
   },
+
+  loadAdminUsers: async (query) => {
+    const params = new URLSearchParams({
+      page: String(query?.page ?? 1),
+      pageSize: String(query?.pageSize ?? 20),
+    });
+    if (query?.search?.trim()) params.set("search", query.search.trim());
+    if (query?.isActive !== undefined) params.set("isActive", String(query.isActive));
+    return apiRequest<PagedResult<AdminUser>>(`/api/admin/users?${params}`);
+  },
+
+  updateAdminUserStatus: async (id, isActive) =>
+    apiRequest<AdminUser>(`/api/admin/users/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ isActive }),
+    }),
 
   addCategory: async (name, color) => {
     const category = await apiRequest<Category>("/api/categories", {

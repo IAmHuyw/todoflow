@@ -1,3 +1,5 @@
+using Domain.Enums;
+
 namespace Application.DTOs;
 
 public class RegisterRequest
@@ -42,6 +44,19 @@ public class UpdateProfileRequest
     public DateOnly? DateOfBirth { get; set; }
 }
 
+public class AdminUserQueryParameters
+{
+    public string? Search { get; set; }
+    public bool? IsActive { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
+
+public class UpdateUserStatusRequest
+{
+    public bool IsActive { get; set; }
+}
+
 public record GoogleIdentity(
     string Subject,
     string Email,
@@ -54,6 +69,17 @@ public record UserDto(
     string? FullName,
     string? PhoneNumber,
     DateOnly? DateOfBirth,
+    UserRole Role,
+    bool IsActive,
+    DateTime CreatedAt);
+
+public record AdminUserDto(
+    Guid Id,
+    string Username,
+    string Email,
+    string? FullName,
+    UserRole Role,
+    bool IsActive,
     DateTime CreatedAt);
 
 public record AuthResponse(

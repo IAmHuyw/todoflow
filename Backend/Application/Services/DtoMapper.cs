@@ -13,6 +13,8 @@ internal static class DtoMapper
             user.FullName,
             user.PhoneNumber,
             user.DateOfBirth,
+            user.Role,
+            user.IsActive,
             user.CreatedAt);
 
     public static CategoryDto ToDto(Category category) =>

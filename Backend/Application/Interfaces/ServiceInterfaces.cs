@@ -16,6 +16,18 @@ public interface IAuthService
     Task<UserDto> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken = default);
 }
 
+public interface IAdminUserService
+{
+    Task<PagedResult<AdminUserDto>> GetAllAsync(
+        AdminUserQueryParameters query,
+        CancellationToken cancellationToken = default);
+    Task<AdminUserDto> UpdateStatusAsync(
+        Guid adminId,
+        Guid userId,
+        UpdateUserStatusRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICategoryService
 {
     Task<IReadOnlyList<CategoryDto>> GetAllAsync(Guid userId, CancellationToken cancellationToken = default);

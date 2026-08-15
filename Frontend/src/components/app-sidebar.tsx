@@ -7,6 +7,7 @@ import {
   Bell,
   CheckCircle2,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -55,6 +56,11 @@ export function AppSidebar() {
     return null;
   };
 
+  const navigationItems =
+    user?.role === "admin"
+      ? [...items, { title: "Quản trị", url: "/admin/users", icon: ShieldCheck }]
+      : items;
+
   const handleLogout = async () => {
     await logout();
     navigate({ to: "/auth" });
@@ -75,7 +81,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Không gian làm việc</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {navigationItems.map((item) => {
                 const active = currentPath === item.url;
                 const badge = badgeFor(item.url);
                 return (

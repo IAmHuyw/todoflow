@@ -1,3 +1,5 @@
+using Domain.Enums;
+
 namespace Domain.Entities;
 
 public class User
@@ -11,6 +13,8 @@ public class User
     // Null for accounts created through Google before they choose a local password.
     public string? PasswordHash { get; set; }
     public string? GoogleSubject { get; set; }
+    public UserRole Role { get; set; } = UserRole.User;
+    public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<Category> Categories { get; set; } = new List<Category>();

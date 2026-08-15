@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Domain.Entities;
+using Domain.Enums;
 
 namespace Infrastructure.Data;
 
@@ -37,11 +38,14 @@ public class AppDbContext : DbContext
             entity.Property(user => user.DateOfBirth).HasColumnType("date");
             entity.Property(user => user.PasswordHash).HasMaxLength(255);
             entity.Property(user => user.GoogleSubject).HasMaxLength(255);
+            entity.Property(user => user.Role).HasConversion<int>().HasDefaultValue(UserRole.User);
+            entity.Property(user => user.IsActive).HasDefaultValue(true);
             entity.HasIndex(user => user.Username).IsUnique();
             entity.HasIndex(user => user.Email).IsUnique();
             entity.HasIndex(user => user.GoogleSubject)
                 .IsUnique()
                 .HasFilter("[GoogleSubject] IS NOT NULL");
+            entity.HasIndex(user => new { user.Role, user.IsActive });
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>

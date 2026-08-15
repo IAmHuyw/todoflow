@@ -9,6 +9,7 @@ export type NotificationType =
   | "task_updated"
   | "task_completed";
 export type ReminderChannel = "email" | "in_app" | "both";
+export type UserRole = "user" | "admin";
 
 export interface User {
   id: string;
@@ -17,7 +18,19 @@ export interface User {
   fullName: string | null;
   phoneNumber: string | null;
   dateOfBirth: string | null;
+  role: UserRole;
+  isActive: boolean;
   password?: string;
+  createdAt: string;
+}
+
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string;
+  fullName: string | null;
+  role: UserRole;
+  isActive: boolean;
   createdAt: string;
 }
 

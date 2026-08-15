@@ -201,6 +201,74 @@ public class ServiceTests
     }
 
     [Fact]
+    public async Task Admin_user_service_filters_accounts_and_locks_regular_users()
+    {
+        await using var dbContext = CreateDbContext();
+        var passwordHasher = new BCryptPasswordHasher();
+        var admin = new User
+        {
+            Username = "admin",
+            Email = "admin@todo.app",
+            PasswordHash = passwordHasher.HashPassword("test1234"),
+            Role = UserRole.Admin
+        };
+        var target = new User
+        {
+            Username = "targetuser",
+            Email = "target@todo.app",
+            FullName = "Target User",
+            PasswordHash = passwordHasher.HashPassword("test1234")
+        };
+        var inactiveUser = new User
+        {
+            Username = "inactiveuser",
+            Email = "inactive@todo.app",
+            IsActive = false,
+            PasswordHash = passwordHasher.HashPassword("test1234")
+        };
+        var otherAdmin = new User
+        {
+            Username = "otheradmin",
+            Email = "other-admin@todo.app",
+            Role = UserRole.Admin,
+            PasswordHash = passwordHasher.HashPassword("test1234")
+        };
+        dbContext.Users.AddRange(admin, target, inactiveUser, otherAdmin);
+        dbContext.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = target.Id,
+            TokenHash = "target-active-token",
+            ExpiresAt = DateTime.UtcNow.AddDays(1)
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateAdminUserService(dbContext);
+        var page = await service.GetAllAsync(new AdminUserQueryParameters
+        {
+            Search = "target",
+            IsActive = true,
+            Page = 1,
+            PageSize = 10
+        });
+
+        Assert.Single(page.Items);
+        Assert.Equal(target.Id, page.Items[0].Id);
+
+        var locked = await service.UpdateStatusAsync(
+            admin.Id,
+            target.Id,
+            new UpdateUserStatusRequest { IsActive = false });
+
+        Assert.False(locked.IsActive);
+        Assert.False((await dbContext.Users.FindAsync(target.Id))!.IsActive);
+        Assert.NotNull((await dbContext.RefreshTokens.SingleAsync()).RevokedAt);
+        await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            service.UpdateStatusAsync(admin.Id, admin.Id, new UpdateUserStatusRequest { IsActive = false }));
+        await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            service.UpdateStatusAsync(admin.Id, otherAdmin.Id, new UpdateUserStatusRequest { IsActive = false }));
+    }
+
+    [Fact]
     public async Task Task_service_creates_updates_filters_and_soft_deletes_tasks()
     {
         await using var dbContext = CreateDbContext();
@@ -388,6 +456,9 @@ public class ServiceTests
 
     private static NotificationService CreateNotificationService(AppDbContext dbContext) =>
         new(new UnitOfWork(dbContext), new NoopRealtimeNotifier());
+
+    private static AdminUserService CreateAdminUserService(AppDbContext dbContext) =>
+        new(new UnitOfWork(dbContext));
 
     private static async Task<Guid> SeedUserAsync(AppDbContext dbContext)
     {

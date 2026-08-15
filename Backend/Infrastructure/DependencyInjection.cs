@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.Configure<AdminBootstrapOptions>(configuration.GetSection(AdminBootstrapOptions.SectionName));
 
         services.AddScoped<IUnitOfWork, global::Infrastructure.UnitOfWork.UnitOfWork>();
         services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();

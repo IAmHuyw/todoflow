@@ -175,6 +175,7 @@ public class AuthService : IAuthService
 
         var user = await _unitOfWork.Users.GetByIdAsync(storedToken.UserId, cancellationToken)
             ?? throw new AppException("Tài khoản của phiên đăng nhập không còn tồn tại.", 401);
+        EnsureUserIsActive(user);
 
         var refreshToken = _tokenService.GenerateRefreshToken();
         var refreshTokenHash = _tokenService.HashRefreshToken(refreshToken);
@@ -337,6 +338,8 @@ public class AuthService : IAuthService
 
     private async Task<AuthResponse> IssueTokensAsync(User user, CancellationToken cancellationToken)
     {
+        EnsureUserIsActive(user);
+
         var refreshToken = _tokenService.GenerateRefreshToken();
         var refreshTokenHash = _tokenService.HashRefreshToken(refreshToken);
         var storedToken = CreateRefreshToken(user.Id, refreshTokenHash);
@@ -360,6 +363,14 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = _tokenService.RefreshTokenExpiresAt
         };
+
+    private static void EnsureUserIsActive(User user)
+    {
+        if (!user.IsActive)
+        {
+            throw new AppException("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.", 403);
+        }
+    }
 
     private string CreateGoogleUsername(string email)
     {
