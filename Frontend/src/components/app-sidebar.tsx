@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
+  ListTodo,
   FolderKanban,
   Tag as TagIcon,
   Users,
@@ -27,7 +28,8 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 
 const items = [
-  { title: "Bảng công việc", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Tổng quan", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Công việc", url: "/tasks", icon: ListTodo },
   { title: "Danh mục", url: "/categories", icon: FolderKanban },
   { title: "Nhãn", url: "/tags", icon: TagIcon },
   { title: "Chia sẻ", url: "/shared", icon: Users },

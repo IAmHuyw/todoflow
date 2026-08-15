@@ -269,6 +269,96 @@ public class ServiceTests
     }
 
     [Fact]
+    public async Task Dashboard_summary_only_uses_current_users_tasks_and_classifies_dates()
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var otherUserId = await SeedUserAsync(dbContext);
+        var category = await SeedCategoryAsync(dbContext, userId, "Công việc");
+        var today = DateTime.UtcNow.Date;
+
+        dbContext.Tasks.AddRange(
+            new TodoTask
+            {
+                UserId = userId,
+                CategoryId = category.Id,
+                Title = "Quá hạn",
+                Priority = Priority.High,
+                Status = TodoStatus.Todo,
+                DueDate = today.AddDays(-1),
+                CreatedAt = today.AddDays(-2)
+            },
+            new TodoTask
+            {
+                UserId = userId,
+                CategoryId = category.Id,
+                Title = "Hôm nay",
+                Status = TodoStatus.InProgress,
+                DueDate = today,
+                CreatedAt = today.AddHours(1)
+            },
+            new TodoTask
+            {
+                UserId = userId,
+                CategoryId = category.Id,
+                Title = "Sắp tới",
+                Status = TodoStatus.Todo,
+                DueDate = today.AddDays(1),
+                CreatedAt = today.AddHours(2)
+            },
+            new TodoTask
+            {
+                UserId = userId,
+                CategoryId = category.Id,
+                Title = "Đã xong",
+                Status = TodoStatus.Done,
+                CreatedAt = today.AddDays(-3)
+            },
+            new TodoTask
+            {
+                UserId = userId,
+                Title = "Không danh mục",
+                Status = TodoStatus.Todo,
+                CreatedAt = today.AddHours(3)
+            },
+            new TodoTask
+            {
+                UserId = otherUserId,
+                Title = "Của người khác",
+                Status = TodoStatus.Todo,
+                DueDate = today,
+                CreatedAt = today
+            },
+            new TodoTask
+            {
+                UserId = userId,
+                Title = "Đã xóa",
+                Status = TodoStatus.Todo,
+                IsDeleted = true,
+                CreatedAt = today
+            });
+        await dbContext.SaveChangesAsync();
+
+        var summary = await CreateDashboardService(dbContext).GetSummaryAsync(userId);
+
+        Assert.Equal(5, summary.TotalTaskCount);
+        Assert.Equal(3, summary.TodoCount);
+        Assert.Equal(1, summary.InProgressCount);
+        Assert.Equal(1, summary.DoneCount);
+        Assert.Equal(1, summary.OverdueCount);
+        Assert.Equal(1, summary.DueTodayCount);
+        Assert.Equal(["Quá hạn", "Hôm nay"], summary.TodayTasks.Select(task => task.Title));
+        Assert.Single(summary.UpcomingTasks);
+        Assert.Equal("Sắp tới", summary.UpcomingTasks[0].Title);
+        Assert.Equal(
+            3,
+            summary.CreatedTaskTrend.Single(point => point.Date == DateOnly.FromDateTime(today)).Count);
+        Assert.Single(summary.Categories);
+        Assert.Equal(4, summary.Categories[0].TotalTaskCount);
+        Assert.Equal(3, summary.Categories[0].OpenTaskCount);
+    }
+
+    [Fact]
     public async Task Task_service_creates_updates_filters_and_soft_deletes_tasks()
     {
         await using var dbContext = CreateDbContext();
@@ -458,6 +548,9 @@ public class ServiceTests
         new(new UnitOfWork(dbContext), new NoopRealtimeNotifier());
 
     private static AdminUserService CreateAdminUserService(AppDbContext dbContext) =>
+        new(new UnitOfWork(dbContext));
+
+    private static DashboardService CreateDashboardService(AppDbContext dbContext) =>
         new(new UnitOfWork(dbContext));
 
     private static async Task<Guid> SeedUserAsync(AppDbContext dbContext)

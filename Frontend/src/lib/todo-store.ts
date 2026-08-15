@@ -10,6 +10,7 @@ import {
 import type {
   AdminUser,
   Category,
+  DashboardSummary,
   Notification,
   Priority,
   ReminderChannel,
@@ -111,6 +112,7 @@ interface TodoState {
   }) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (input: UpdateProfileInput) => Promise<void>;
+  loadDashboardSummary: () => Promise<DashboardSummary>;
   loadAdminUsers: (query?: AdminUserQuery) => Promise<PagedResult<AdminUser>>;
   updateAdminUserStatus: (id: string, isActive: boolean) => Promise<AdminUser>;
   addCategory: (name: string, color: string) => Promise<void>;
@@ -418,6 +420,8 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       users: get().users.map((item) => (item.id === user.id ? user : item)),
     });
   },
+
+  loadDashboardSummary: () => apiRequest<DashboardSummary>("/api/dashboard/summary"),
 
   loadAdminUsers: async (query) => {
     const params = new URLSearchParams({

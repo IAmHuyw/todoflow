@@ -34,6 +34,42 @@ export interface AdminUser {
   createdAt: string;
 }
 
+export interface DashboardSummary {
+  totalTaskCount: number;
+  todoCount: number;
+  inProgressCount: number;
+  doneCount: number;
+  overdueCount: number;
+  dueTodayCount: number;
+  todayTasks: DashboardTaskSummary[];
+  upcomingTasks: DashboardTaskSummary[];
+  createdTaskTrend: DashboardTrendPoint[];
+  categories: DashboardCategorySummary[];
+}
+
+export interface DashboardTaskSummary {
+  id: string;
+  title: string;
+  priority: Priority;
+  status: Status;
+  dueDate: string | null;
+  categoryName: string | null;
+  categoryColor: string | null;
+}
+
+export interface DashboardTrendPoint {
+  date: string;
+  count: number;
+}
+
+export interface DashboardCategorySummary {
+  id: string;
+  name: string;
+  color: string;
+  totalTaskCount: number;
+  openTaskCount: number;
+}
+
 export interface Category {
   id: string;
   userId: string;

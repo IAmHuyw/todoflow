@@ -28,6 +28,13 @@ public interface IAdminUserService
         CancellationToken cancellationToken = default);
 }
 
+public interface IDashboardService
+{
+    Task<DashboardSummaryDto> GetSummaryAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICategoryService
 {
     Task<IReadOnlyList<CategoryDto>> GetAllAsync(Guid userId, CancellationToken cancellationToken = default);
