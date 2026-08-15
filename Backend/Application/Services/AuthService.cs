@@ -89,9 +89,67 @@ public class AuthService : IAuthService
         var user = _unitOfWork.Users.Query()
             .FirstOrDefault(user => user.Email.ToLower() == login || user.Username.ToLower() == login);
 
-        if (user is null || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
+        if (user is null ||
+            string.IsNullOrWhiteSpace(user.PasswordHash) ||
+            !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
             throw new AppException("Email/tên đăng nhập hoặc mật khẩu không đúng.", 401);
+        }
+
+        return await IssueTokensAsync(user, cancellationToken);
+    }
+
+    public async Task<AuthResponse> LoginWithGoogleAsync(
+        GoogleIdentity identity,
+        CancellationToken cancellationToken = default)
+    {
+        var subject = identity.Subject.Trim();
+        var email = identity.Email.Trim().ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(email))
+        {
+            throw new AppException("Không thể xác minh thông tin tài khoản Google.", 400);
+        }
+
+        if (email.Length > 100)
+        {
+            throw new AppException("Email do Google cung cấp không hợp lệ.", 400);
+        }
+
+        var user = _unitOfWork.Users.Query()
+            .FirstOrDefault(item => item.GoogleSubject == subject);
+
+        if (user is null)
+        {
+            user = _unitOfWork.Users.Query()
+                .FirstOrDefault(item => item.Email.ToLower() == email);
+
+            if (user is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(user.GoogleSubject) && user.GoogleSubject != subject)
+                {
+                    throw new AppException("Email này đã được liên kết với một tài khoản Google khác.", 409);
+                }
+
+                user.GoogleSubject = subject;
+                if (string.IsNullOrWhiteSpace(user.FullName) && !string.IsNullOrWhiteSpace(identity.FullName))
+                {
+                    user.FullName = NormalizeGoogleFullName(identity.FullName);
+                }
+            }
+            else
+            {
+                user = new User
+                {
+                    Username = CreateGoogleUsername(email),
+                    Email = email,
+                    FullName = NormalizeGoogleFullName(identity.FullName),
+                    GoogleSubject = subject,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _unitOfWork.Users.AddAsync(user, cancellationToken);
+            }
         }
 
         return await IssueTokensAsync(user, cancellationToken);
@@ -302,6 +360,41 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = _tokenService.RefreshTokenExpiresAt
         };
+
+    private string CreateGoogleUsername(string email)
+    {
+        var localPart = email.Split('@', 2)[0];
+        var sanitized = new string(localPart
+            .Select(character => char.IsLetterOrDigit(character) || character is '.' or '_' or '-' ? character : '-')
+            .ToArray())
+            .Trim('.', '-', '_');
+
+        var baseUsername = string.IsNullOrWhiteSpace(sanitized) ? "google-user" : sanitized;
+        baseUsername = baseUsername[..Math.Min(baseUsername.Length, 50)];
+
+        var candidate = baseUsername;
+        var suffix = 2;
+        while (_unitOfWork.Users.Query().Any(user => user.Username.ToLower() == candidate.ToLower()))
+        {
+            var suffixText = suffix.ToString();
+            var prefixLength = Math.Max(1, 50 - suffixText.Length);
+            candidate = $"{baseUsername[..Math.Min(baseUsername.Length, prefixLength)]}{suffixText}";
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private static string? NormalizeGoogleFullName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var name = value.Trim();
+        return name[..Math.Min(name.Length, 100)];
+    }
 
     private static string GenerateOtp() =>
         RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");

@@ -35,9 +35,13 @@ public class AppDbContext : DbContext
             entity.Property(user => user.FullName).HasMaxLength(100);
             entity.Property(user => user.PhoneNumber).HasMaxLength(16);
             entity.Property(user => user.DateOfBirth).HasColumnType("date");
-            entity.Property(user => user.PasswordHash).HasMaxLength(255).IsRequired();
+            entity.Property(user => user.PasswordHash).HasMaxLength(255);
+            entity.Property(user => user.GoogleSubject).HasMaxLength(255);
             entity.HasIndex(user => user.Username).IsUnique();
             entity.HasIndex(user => user.Email).IsUnique();
+            entity.HasIndex(user => user.GoogleSubject)
+                .IsUnique()
+                .HasFilter("[GoogleSubject] IS NOT NULL");
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>

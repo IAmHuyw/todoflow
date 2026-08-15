@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { useEffect, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Chrome, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ function AuthPage() {
   const { mode } = Route.useSearch();
   const navigate = useNavigate();
   const login = useTodoStore((s) => s.login);
+  const loginWithGoogle = useTodoStore((s) => s.loginWithGoogle);
   const register = useTodoStore((s) => s.register);
   const initializeAuth = useTodoStore((s) => s.initializeAuth);
   const currentUserId = useTodoStore((s) => s.currentUserId);
@@ -58,6 +59,7 @@ function AuthPage() {
     otp: "",
     newPassword: "",
   });
+  const [googleSigningIn, setGoogleSigningIn] = useState(false);
 
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +77,22 @@ function AuthPage() {
     if (!res.ok) return toast.error(res.error);
     toast.success("Tạo tài khoản thành công");
     navigate({ to: "/dashboard" });
+  };
+
+  const submitGoogleLogin = async () => {
+    setGoogleSigningIn(true);
+    try {
+      const res = await loginWithGoogle();
+      if (!res.ok) {
+        toast.error(res.error ?? "Không thể đăng nhập bằng Google");
+        return;
+      }
+
+      toast.success("Đăng nhập Google thành công");
+      navigate({ to: "/dashboard" });
+    } finally {
+      setGoogleSigningIn(false);
+    }
   };
 
   const submitForgotPassword = async (e: React.FormEvent) => {
@@ -246,6 +264,10 @@ function AuthPage() {
                 <Button type="submit" className="w-full">
                   Đăng nhập
                 </Button>
+                <GoogleLoginButton
+                  onClick={submitGoogleLogin}
+                  disabled={googleSigningIn}
+                />
                 <Button
                   type="button"
                   variant="link"
@@ -314,12 +336,48 @@ function AuthPage() {
                 <Button type="submit" className="w-full">
                   Tạo tài khoản
                 </Button>
+                <GoogleLoginButton
+                  onClick={submitGoogleLogin}
+                  disabled={googleSigningIn}
+                />
               </form>
             </TabsContent>
           </Tabs>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function GoogleLoginButton({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        <span>hoặc</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={onClick}
+        disabled={disabled}
+      >
+        {disabled ? (
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+        ) : (
+          <Chrome className="h-4 w-4" />
+        )}
+        Tiếp tục với Google
+      </Button>
     </div>
   );
 }

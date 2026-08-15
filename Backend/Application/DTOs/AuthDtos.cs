@@ -42,6 +42,11 @@ public class UpdateProfileRequest
     public DateOnly? DateOfBirth { get; set; }
 }
 
+public record GoogleIdentity(
+    string Subject,
+    string Email,
+    string? FullName);
+
 public record UserDto(
     Guid Id,
     string Username,

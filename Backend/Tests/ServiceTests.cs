@@ -151,6 +151,56 @@ public class ServiceTests
     }
 
     [Fact]
+    public async Task Auth_google_login_creates_then_reuses_google_user()
+    {
+        await using var dbContext = CreateDbContext();
+        var auth = CreateAuthService(dbContext);
+        var identity = new GoogleIdentity("google-subject-1", "google.user@gmail.com", "Google User");
+
+        var created = await auth.LoginWithGoogleAsync(identity);
+        var createdUser = await dbContext.Users.SingleAsync();
+
+        Assert.Equal(createdUser.Id, created.User.Id);
+        Assert.Equal("google-subject-1", createdUser.GoogleSubject);
+        Assert.Equal("Google User", createdUser.FullName);
+        Assert.Null(createdUser.PasswordHash);
+
+        var loggedInAgain = await auth.LoginWithGoogleAsync(identity);
+
+        Assert.Equal(created.User.Id, loggedInAgain.User.Id);
+        Assert.Single(await dbContext.Users.ToArrayAsync());
+        Assert.Equal(2, await dbContext.RefreshTokens.CountAsync());
+        await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            auth.LoginAsync(new LoginRequest
+            {
+                EmailOrUsername = "google.user@gmail.com",
+                Password = "not-a-local-password"
+            }));
+    }
+
+    [Fact]
+    public async Task Auth_google_login_links_existing_user_with_same_email()
+    {
+        await using var dbContext = CreateDbContext();
+        var auth = CreateAuthService(dbContext);
+        var registered = await auth.RegisterAsync(new RegisterRequest
+        {
+            Username = "existinguser",
+            Email = "existing@todo.app",
+            Password = "test1234"
+        });
+
+        var googleLogin = await auth.LoginWithGoogleAsync(
+            new GoogleIdentity("google-subject-2", "existing@todo.app", "Existing User"));
+        var linkedUser = await dbContext.Users.SingleAsync();
+
+        Assert.Equal(registered.User.Id, googleLogin.User.Id);
+        Assert.Equal("google-subject-2", linkedUser.GoogleSubject);
+        Assert.Equal("Existing User", linkedUser.FullName);
+        Assert.False(string.IsNullOrWhiteSpace(linkedUser.PasswordHash));
+    }
+
+    [Fact]
     public async Task Task_service_creates_updates_filters_and_soft_deletes_tasks()
     {
         await using var dbContext = CreateDbContext();

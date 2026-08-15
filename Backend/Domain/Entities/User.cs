@@ -8,7 +8,9 @@ public class User
     public string? FullName { get; set; }
     public string? PhoneNumber { get; set; }
     public DateOnly? DateOfBirth { get; set; }
-    public string PasswordHash { get; set; } = string.Empty;
+    // Null for accounts created through Google before they choose a local password.
+    public string? PasswordHash { get; set; }
+    public string? GoogleSubject { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<Category> Categories { get; set; } = new List<Category>();

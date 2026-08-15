@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import { apiRequest, clearTokens, getAccessToken, getRefreshToken, setTokens } from "./api-client";
+import {
+  API_BASE_URL,
+  apiRequest,
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  setTokens,
+} from "./api-client";
 import type {
   Category,
   Notification,
@@ -21,6 +28,15 @@ interface AuthResponse {
   user: User;
   accessToken: string;
   refreshToken: string;
+}
+
+const GOOGLE_AUTH_MESSAGE_SOURCE = "todoflow-google-auth";
+
+interface GoogleAuthPopupMessage {
+  source: typeof GOOGLE_AUTH_MESSAGE_SOURCE;
+  success: boolean;
+  message?: string | null;
+  data?: AuthResponse | null;
 }
 
 interface TaskDto extends Task {
@@ -79,6 +95,7 @@ interface TodoState {
   loadWorkspace: () => Promise<void>;
   loadTasks: (query?: TaskListQuery) => Promise<void>;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  loginWithGoogle: () => Promise<{ ok: boolean; error?: string }>;
   register: (u: {
     username: string;
     email: string;
@@ -257,6 +274,81 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     } catch (error) {
       return { ok: false, error: getErrorMessage(error) };
     }
+  },
+
+  loginWithGoogle: () => {
+    const googleUrl = new URL("/api/auth/google", API_BASE_URL);
+    googleUrl.searchParams.set("returnUrl", window.location.origin);
+
+    const popup = window.open(
+      googleUrl.toString(),
+      "todoflow-google-login",
+      "popup=yes,width=520,height=640",
+    );
+
+    if (!popup) {
+      return Promise.resolve({
+        ok: false,
+        error: "Trình duyệt đã chặn cửa sổ đăng nhập Google. Hãy cho phép popup rồi thử lại.",
+      });
+    }
+
+    return new Promise((resolve) => {
+      const apiOrigin = new URL(API_BASE_URL).origin;
+      let completed = false;
+
+      const cleanup = () => {
+        window.removeEventListener("message", onMessage);
+        window.clearInterval(closeTimer);
+        window.clearTimeout(timeout);
+      };
+
+      const finish = (result: { ok: boolean; error?: string }) => {
+        if (completed) return;
+        completed = true;
+        cleanup();
+        resolve(result);
+      };
+
+      const completeLogin = async (response: AuthResponse) => {
+        try {
+          setTokens(response.accessToken, response.refreshToken);
+          set({ users: [response.user], currentUserId: response.user.id, hydrated: true });
+          await get().loadWorkspace();
+          await startStoreRealtime(set, get);
+          finish({ ok: true });
+        } catch (error) {
+          finish({ ok: false, error: getErrorMessage(error) });
+        }
+      };
+
+      const onMessage = (event: MessageEvent<unknown>) => {
+        if (event.origin !== apiOrigin || !isGoogleAuthPopupMessage(event.data)) return;
+
+        const message = event.data;
+        if (!message.success || !message.data) {
+          finish({
+            ok: false,
+            error: message.message ?? "Không thể đăng nhập bằng Google.",
+          });
+          return;
+        }
+
+        void completeLogin(message.data);
+      };
+
+      const closeTimer = window.setInterval(() => {
+        if (popup.closed) {
+          finish({ ok: false, error: "Bạn đã đóng cửa sổ đăng nhập Google." });
+        }
+      }, 500);
+      const timeout = window.setTimeout(() => {
+        popup.close();
+        finish({ ok: false, error: "Đăng nhập Google đã hết thời gian chờ. Hãy thử lại." });
+      }, 120_000);
+
+      window.addEventListener("message", onMessage);
+    });
   },
 
   register: async ({ username, email, password }) => {
@@ -702,4 +794,14 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
   return "Có lỗi xảy ra khi kết nối máy chủ.";
+}
+
+function isGoogleAuthPopupMessage(value: unknown): value is GoogleAuthPopupMessage {
+  if (typeof value !== "object" || value === null) return false;
+
+  const message = value as { source?: unknown; success?: unknown };
+  return (
+    message.source === GOOGLE_AUTH_MESSAGE_SOURCE &&
+    typeof message.success === "boolean"
+  );
 }

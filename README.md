@@ -85,6 +85,25 @@ dotnet user-secrets set "Smtp:FromName" "TodoFlow"
 
 Gmail cần App Password, không dùng mật khẩu đăng nhập Gmail thường. Email reminder sẽ gửi tới email của user đang sở hữu task.
 
+## Cấu hình đăng nhập Google
+
+Đăng nhập Google dùng OAuth 2.0 ở backend. Tạo OAuth client loại **Web application** trong Google Cloud Console, sau đó thêm Redirect URI cho môi trường local:
+
+```text
+http://localhost:5050/signin-google
+```
+
+Không đưa Client Secret lên Git. Lưu thông tin OAuth bằng User Secrets trong project API:
+
+```bash
+cd Backend/Api
+dotnet user-secrets set "GoogleOAuth:ClientId" "your-client-id.apps.googleusercontent.com"
+dotnet user-secrets set "GoogleOAuth:ClientSecret" "your-google-client-secret"
+dotnet user-secrets set "GoogleOAuth:FrontendUrl" "http://localhost:5173"
+```
+
+Nếu frontend của bạn chạy ở cổng khác trong local, ví dụ `http://localhost:8080`, thay giá trị `GoogleOAuth:FrontendUrl` tương ứng. Khi deploy, thay Redirect URI bằng URL HTTPS của API, ví dụ `https://api.example.com/signin-google`, đồng thời cấu hình `GoogleOAuth:FrontendUrl` bằng URL frontend production.
+
 ## Chạy frontend
 
 ```bash
