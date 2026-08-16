@@ -721,7 +721,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       method: "POST",
       body: JSON.stringify({ title, note }),
     });
-    set({ subtasks: [...get().subtasks, subTask] });
+    upsertSubTask(set, get, subTask);
   },
 
   updateSubtask: async (id, patch) => {
@@ -930,12 +930,7 @@ async function startStoreRealtime(
           ),
           subtasks: get().subtasks.filter((subtask) => subtask.taskId !== taskId),
         }),
-      subTaskUpdated: (subTask) =>
-        set({
-          subtasks: get().subtasks.some((item) => item.id === subTask.id)
-            ? get().subtasks.map((item) => (item.id === subTask.id ? subTask : item))
-            : [...get().subtasks, subTask],
-        }),
+      subTaskUpdated: (subTask) => upsertSubTask(set, get, subTask),
       taskShared: (share) => upsertShare(set, get, share as TaskShareDto),
       shareResponded: (share) => upsertShare(set, get, share as TaskShareDto),
       notificationReceived: (notification) => upsertNotification(set, get, notification),
@@ -995,6 +990,14 @@ function upsertComment(
   comment: TaskComment,
 ) {
   set({ taskComments: mergeById(get().taskComments, [comment]) });
+}
+
+function upsertSubTask(
+  set: (partial: Partial<TodoState>) => void,
+  get: () => TodoState,
+  subTask: SubTask,
+) {
+  set({ subtasks: mergeById(get().subtasks, [subTask]) });
 }
 
 function upsertActivity(
