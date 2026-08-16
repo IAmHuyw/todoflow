@@ -15,6 +15,8 @@ public interface IUnitOfWork
     IRepository<TaskShare> TaskShares { get; }
     IRepository<Notification> Notifications { get; }
     IRepository<TaskReminder> TaskReminders { get; }
+    IRepository<TaskComment> TaskComments { get; }
+    IRepository<TaskActivity> TaskActivities { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

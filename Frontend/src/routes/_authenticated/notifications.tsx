@@ -1,7 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Bell, Check, CheckCheck, Share2, Clock, CheckCircle2, Trash2 } from "lucide-react";
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  Share2,
+  Clock,
+  CheckCircle2,
+  Trash2,
+  MessageSquare,
+  UserCheck,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   AlertDialog,
@@ -30,6 +40,8 @@ const iconFor: Record<NotificationType, typeof Bell> = {
   task_shared: Share2,
   task_updated: Bell,
   task_completed: CheckCircle2,
+  task_commented: MessageSquare,
+  task_assigned: UserCheck,
 };
 
 function NotificationsPage() {
@@ -158,15 +170,34 @@ function NotificationsPage() {
               >
                 <Icon className="h-4 w-4" />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm">{n.message}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(n.createdAt), {
-                    addSuffix: true,
-                    locale: vi,
-                  })}
-                </p>
-              </div>
+              {n.taskId ? (
+                <Link
+                  to="/tasks/$taskId"
+                  params={{ taskId: n.taskId }}
+                  className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => {
+                    if (!n.isRead) void markOneRead(n.id);
+                  }}
+                >
+                  <p className="text-sm hover:text-primary">{n.message}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {formatDistanceToNow(new Date(n.createdAt), {
+                      addSuffix: true,
+                      locale: vi,
+                    })}
+                  </p>
+                </Link>
+              ) : (
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm">{n.message}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {formatDistanceToNow(new Date(n.createdAt), {
+                      addSuffix: true,
+                      locale: vi,
+                    })}
+                  </p>
+                </div>
+              )}
               {!n.isRead && (
                 <Button
                   variant="ghost"

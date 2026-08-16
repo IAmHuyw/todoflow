@@ -23,6 +23,8 @@ public class UnitOfWork : IUnitOfWork
         TaskShares = new Repository<TaskShare>(context);
         Notifications = new Repository<Notification>(context);
         TaskReminders = new Repository<TaskReminder>(context);
+        TaskComments = new Repository<TaskComment>(context);
+        TaskActivities = new Repository<TaskActivity>(context);
     }
 
     public IRepository<User> Users { get; }
@@ -36,6 +38,8 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<TaskShare> TaskShares { get; }
     public IRepository<Notification> Notifications { get; }
     public IRepository<TaskReminder> TaskReminders { get; }
+    public IRepository<TaskComment> TaskComments { get; }
+    public IRepository<TaskActivity> TaskActivities { get; }
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _context.SaveChangesAsync(cancellationToken);

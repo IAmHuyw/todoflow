@@ -5,6 +5,9 @@ namespace Application.DTOs;
 public record TaskDto(
     Guid Id,
     Guid UserId,
+    Guid? AssigneeId,
+    string? AssigneeUsername,
+    string? AssigneeFullName,
     Guid? CategoryId,
     string Title,
     string Description,
@@ -62,14 +65,28 @@ public class ReorderTasksRequest
     public List<TaskOrderItem> Items { get; set; } = [];
 }
 
+public class MoveTaskRequest
+{
+    public TodoStatus Status { get; set; }
+    public Guid? AnchorTaskId { get; set; }
+    public string Placement { get; set; } = "after";
+}
+
 public class TaskQueryParameters
 {
     public Guid? CategoryId { get; set; }
     public string? Priority { get; set; }
     public string? Status { get; set; }
     public string? Search { get; set; }
+    public string Scope { get; set; } = "accessible";
+    public string Assignee { get; set; } = "all";
     public string SortBy { get; set; } = "sortOrder";
     public string SortDir { get; set; } = "asc";
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
+}
+
+public class UpdateTaskAssigneeRequest
+{
+    public Guid? UserId { get; set; }
 }

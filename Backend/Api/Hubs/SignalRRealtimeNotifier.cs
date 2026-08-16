@@ -51,4 +51,24 @@ public class SignalRRealtimeNotifier : IRealtimeNotifier
     public Task NotificationReceivedAsync(NotificationDto notification, CancellationToken cancellationToken = default) =>
         _hubContext.Clients.Group(TaskHub.UserGroup(notification.UserId))
             .SendAsync("NotificationReceived", notification, cancellationToken);
+
+    public Task CommentAddedAsync(Guid taskId, TaskCommentDto comment, CancellationToken cancellationToken = default) =>
+        _hubContext.Clients.Group(TaskHub.TaskGroup(taskId))
+            .SendAsync("CommentAdded", comment, cancellationToken);
+
+    public Task CommentUpdatedAsync(Guid taskId, TaskCommentDto comment, CancellationToken cancellationToken = default) =>
+        _hubContext.Clients.Group(TaskHub.TaskGroup(taskId))
+            .SendAsync("CommentUpdated", comment, cancellationToken);
+
+    public Task CommentDeletedAsync(Guid taskId, Guid commentId, CancellationToken cancellationToken = default) =>
+        _hubContext.Clients.Group(TaskHub.TaskGroup(taskId))
+            .SendAsync("CommentDeleted", new { taskId, commentId }, cancellationToken);
+
+    public Task AssigneeChangedAsync(Guid taskId, TaskDto task, CancellationToken cancellationToken = default) =>
+        _hubContext.Clients.Group(TaskHub.TaskGroup(taskId))
+            .SendAsync("AssigneeChanged", task, cancellationToken);
+
+    public Task ActivityAddedAsync(Guid taskId, TaskActivityDto activity, CancellationToken cancellationToken = default) =>
+        _hubContext.Clients.Group(TaskHub.TaskGroup(taskId))
+            .SendAsync("ActivityAdded", activity, cancellationToken);
 }

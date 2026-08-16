@@ -13,17 +13,20 @@ public class SubTaskService : ISubTaskService
     private readonly IValidator<CreateSubTaskRequest> _createValidator;
     private readonly IValidator<UpdateSubTaskRequest> _updateValidator;
     private readonly IRealtimeNotifier _notifier;
+    private readonly ITaskActivityService _activityService;
 
     public SubTaskService(
         IUnitOfWork unitOfWork,
         IValidator<CreateSubTaskRequest> createValidator,
         IValidator<UpdateSubTaskRequest> updateValidator,
-        IRealtimeNotifier? notifier = null)
+        IRealtimeNotifier? notifier = null,
+        ITaskActivityService? activityService = null)
     {
         _unitOfWork = unitOfWork;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _notifier = notifier ?? new NoopRealtimeNotifier();
+        _activityService = activityService ?? new TaskActivityService(unitOfWork);
     }
 
     public async Task<SubTaskDto> CreateAsync(
@@ -52,10 +55,17 @@ public class SubTaskService : ISubTaskService
 
         await _unitOfWork.SubTasks.AddAsync(subTask, cancellationToken);
         task.UpdatedAt = DateTime.UtcNow;
+        var activity = await _activityService.RecordAsync(
+            task.Id,
+            userId,
+            TaskActivityType.SubTaskCreated,
+            $"đã thêm việc con: {subTask.Title}",
+            cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dto = DtoMapper.ToDto(subTask);
         await _notifier.SubTaskUpdatedAsync(task.Id, dto, cancellationToken);
+        await PublishActivityAsync(activity, cancellationToken);
         return dto;
     }
 
@@ -84,9 +94,16 @@ public class SubTaskService : ISubTaskService
         subTask.IsCompleted = request.IsCompleted;
         task.UpdatedAt = DateTime.UtcNow;
 
+        var activity = await _activityService.RecordAsync(
+            task.Id,
+            userId,
+            TaskActivityType.SubTaskUpdated,
+            $"đã cập nhật việc con: {subTask.Title}",
+            cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         var dto = DtoMapper.ToDto(subTask);
         await _notifier.SubTaskUpdatedAsync(task.Id, dto, cancellationToken);
+        await PublishActivityAsync(activity, cancellationToken);
         return dto;
     }
 
@@ -107,8 +124,15 @@ public class SubTaskService : ISubTaskService
         task.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.SubTasks.Remove(subTask);
 
+        var activity = await _activityService.RecordAsync(
+            task.Id,
+            userId,
+            TaskActivityType.SubTaskDeleted,
+            $"đã xóa việc con: {subTask.Title}",
+            cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         await _notifier.SubTaskUpdatedAsync(task.Id, DtoMapper.ToDto(subTask), cancellationToken);
+        await PublishActivityAsync(activity, cancellationToken);
     }
 
     private static void EnsureCanEdit(Guid userId, TodoTask task)
@@ -127,5 +151,13 @@ public class SubTaskService : ISubTaskService
         {
             throw new AppException("Bạn không có quyền chỉnh sửa công việc này.", 403);
         }
+    }
+
+    private async Task PublishActivityAsync(TaskActivity activity, CancellationToken cancellationToken)
+    {
+        await _notifier.ActivityAddedAsync(
+            activity.TaskId,
+            await _activityService.ToDtoAsync(activity, cancellationToken),
+            cancellationToken);
     }
 }

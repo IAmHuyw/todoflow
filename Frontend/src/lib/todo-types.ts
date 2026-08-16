@@ -7,7 +7,9 @@ export type NotificationType =
   | "due_date_reminder"
   | "task_shared"
   | "task_updated"
-  | "task_completed";
+  | "task_completed"
+  | "task_commented"
+  | "task_assigned";
 export type ReminderChannel = "email" | "in_app" | "both";
 export type UserRole = "user" | "admin";
 
@@ -94,6 +96,9 @@ export interface SubTask {
 export interface Task {
   id: string;
   userId: string;
+  assigneeId: string | null;
+  assigneeUsername: string | null;
+  assigneeFullName: string | null;
   categoryId: string | null;
   title: string;
   description: string;
@@ -109,6 +114,50 @@ export interface Task {
   tagIds: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TaskCollaborator {
+  userId: string;
+  username: string;
+  fullName: string | null;
+  permission: SharePermission;
+  isOwner: boolean;
+  isAssignee: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  authorId: string;
+  authorUsername: string;
+  authorFullName: string | null;
+  content: string;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export type TaskActivityType =
+  | "task_created"
+  | "task_updated"
+  | "status_changed"
+  | "assignee_changed"
+  | "share_changed"
+  | "sub_task_created"
+  | "sub_task_updated"
+  | "sub_task_deleted"
+  | "comment_added"
+  | "comment_updated"
+  | "comment_deleted";
+
+export interface TaskActivity {
+  id: string;
+  taskId: string;
+  actorUserId: string | null;
+  actorUsername: string | null;
+  actorFullName: string | null;
+  type: TaskActivityType;
+  message: string;
+  createdAt: string;
 }
 
 export interface TaskShare {

@@ -30,6 +30,9 @@ internal static class DtoMapper
         new(
             task.Id,
             task.UserId,
+            task.AssigneeId,
+            task.Assignee?.Username,
+            task.Assignee?.FullName,
             task.CategoryId,
             task.Title,
             task.Description ?? string.Empty,
@@ -46,6 +49,28 @@ internal static class DtoMapper
             task.SubTasks.Select(ToDto).ToArray(),
             task.CreatedAt,
             task.UpdatedAt);
+
+    public static TaskCommentDto ToDto(TaskComment comment) =>
+        new(
+            comment.Id,
+            comment.TaskId,
+            comment.AuthorId,
+            comment.Author.Username,
+            comment.Author.FullName,
+            comment.Content,
+            comment.CreatedAt,
+            comment.UpdatedAt);
+
+    public static TaskActivityDto ToDto(TaskActivity activity) =>
+        new(
+            activity.Id,
+            activity.TaskId,
+            activity.ActorUserId,
+            activity.ActorUser?.Username,
+            activity.ActorUser?.FullName,
+            activity.Type,
+            activity.Message,
+            activity.CreatedAt);
 
     public static TaskShareDto ToDto(TaskShare share, bool includeTask = false) =>
         new(

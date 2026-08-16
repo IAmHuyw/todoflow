@@ -20,6 +20,9 @@ import type {
   SubTask,
   Tag,
   Task,
+  TaskActivity,
+  TaskCollaborator,
+  TaskComment,
   TaskReminder,
   TaskShare,
   User,
@@ -63,6 +66,9 @@ export interface TaskListQuery {
   status?: Status | "all";
   search?: string;
   sortBy?: "sortOrder" | "createdAt" | "dueDate" | "priority" | "title";
+  sortDir?: "asc" | "desc";
+  scope?: "owned" | "accessible";
+  assignee?: "all" | "me" | "unassigned";
   page?: number;
   pageSize?: number;
 }
@@ -71,6 +77,12 @@ interface TaskOrderItem {
   id: string;
   status: Status;
   sortOrder: number;
+}
+
+export interface MoveTaskInput {
+  status: Status;
+  anchorTaskId: string | null;
+  placement: "before" | "after";
 }
 
 export interface UpdateProfileInput {
@@ -95,6 +107,9 @@ interface TodoState {
   shares: TaskShare[];
   notifications: Notification[];
   reminders: TaskReminder[];
+  taskCollaborators: Record<string, TaskCollaborator[]>;
+  taskComments: TaskComment[];
+  taskActivities: TaskActivity[];
   currentUserId: string | null;
   hydrated: boolean;
   loading: boolean;
@@ -103,6 +118,11 @@ interface TodoState {
   initializeAuth: () => Promise<void>;
   loadWorkspace: () => Promise<void>;
   loadTasks: (query?: TaskListQuery) => Promise<void>;
+  loadTaskPage: (query: TaskListQuery) => Promise<PagedResult<Task>>;
+  loadTask: (id: string) => Promise<Task>;
+  loadTaskCollaborators: (taskId: string) => Promise<TaskCollaborator[]>;
+  loadTaskComments: (taskId: string, page?: number) => Promise<PagedResult<TaskComment>>;
+  loadTaskActivities: (taskId: string, page?: number) => Promise<PagedResult<TaskActivity>>;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   loginWithGoogle: () => Promise<{ ok: boolean; error?: string }>;
   register: (u: {
@@ -123,13 +143,27 @@ interface TodoState {
   addTask: (
     input: Omit<
       Task,
-      "id" | "userId" | "isDeleted" | "createdAt" | "updatedAt" | "recurrenceParentId" | "sortOrder"
+      | "id"
+      | "userId"
+      | "assigneeId"
+      | "assigneeUsername"
+      | "assigneeFullName"
+      | "isDeleted"
+      | "createdAt"
+      | "updatedAt"
+      | "recurrenceParentId"
+      | "sortOrder"
     >,
   ) => Promise<string | null>;
   updateTask: (id: string, patch: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   setTaskStatus: (id: string, status: Status) => Promise<void>;
   reorderTasks: (items: TaskOrderItem[]) => Promise<void>;
+  moveTask: (id: string, input: MoveTaskInput) => Promise<Task>;
+  updateTaskAssignee: (id: string, userId: string | null) => Promise<Task>;
+  addTaskComment: (taskId: string, content: string) => Promise<TaskComment>;
+  updateTaskComment: (id: string, content: string) => Promise<TaskComment>;
+  deleteTaskComment: (id: string) => Promise<void>;
   addSubtask: (taskId: string, title: string, note?: string) => Promise<void>;
   updateSubtask: (
     id: string,
@@ -162,6 +196,9 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   shares: [],
   notifications: [],
   reminders: [],
+  taskCollaborators: {},
+  taskComments: [],
+  taskActivities: [],
   currentUserId: null,
   hydrated: false,
   loading: false,
@@ -198,6 +235,9 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         shares: [],
         notifications: [],
         reminders: [],
+        taskCollaborators: {},
+        taskComments: [],
+        taskActivities: [],
         currentUserId: null,
         hydrated: true,
       });
@@ -266,6 +306,66 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     } finally {
       set({ loading: false });
     }
+  },
+
+  loadTaskPage: async (query) => {
+    const page = await apiRequest<PagedResult<TaskDto>>(
+      `/api/tasks?${buildTaskQueryString(query)}`,
+    );
+    const normalized = normalizeTasks(page.items);
+    const loadedTaskIds = new Set(normalized.tasks.map((task) => task.id));
+
+    set({
+      tasks: mergeTasksById(get().tasks, normalized.tasks),
+      subtasks: [
+        ...get().subtasks.filter((subtask) => !loadedTaskIds.has(subtask.taskId)),
+        ...normalized.subtasks,
+      ],
+    });
+    await syncRealtimeTaskGroups(get().tasks.map((task) => task.id));
+
+    return { ...page, items: normalized.tasks };
+  },
+
+  loadTask: async (id) => {
+    const task = await apiRequest<TaskDto>(`/api/tasks/${id}`);
+    upsertTask(set, get, task);
+    await syncRealtimeTaskGroups([...new Set([...get().tasks.map((item) => item.id), id])]);
+    return normalizeTasks([task]).tasks[0];
+  },
+
+  loadTaskCollaborators: async (taskId) => {
+    const collaborators = await apiRequest<TaskCollaborator[]>(
+      `/api/tasks/${taskId}/collaborators`,
+    );
+    set({
+      taskCollaborators: { ...get().taskCollaborators, [taskId]: collaborators },
+    });
+    return collaborators;
+  },
+
+  loadTaskComments: async (taskId, page = 1) => {
+    const result = await apiRequest<PagedResult<TaskComment>>(
+      `/api/tasks/${taskId}/comments?page=${page}&pageSize=30`,
+    );
+    const current = page === 1 ? [] : get().taskComments.filter((item) => item.taskId === taskId);
+    const merged = mergeById(current, result.items);
+    set({
+      taskComments: [...get().taskComments.filter((item) => item.taskId !== taskId), ...merged],
+    });
+    return result;
+  },
+
+  loadTaskActivities: async (taskId, page = 1) => {
+    const result = await apiRequest<PagedResult<TaskActivity>>(
+      `/api/tasks/${taskId}/activities?page=${page}&pageSize=30`,
+    );
+    const current = page === 1 ? [] : get().taskActivities.filter((item) => item.taskId === taskId);
+    const merged = mergeById(current, result.items);
+    set({
+      taskActivities: [...get().taskActivities.filter((item) => item.taskId !== taskId), ...merged],
+    });
+    return result;
   },
 
   login: async (email, password) => {
@@ -406,6 +506,9 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       shares: [],
       notifications: [],
       reminders: [],
+      taskCollaborators: {},
+      taskComments: [],
+      taskActivities: [],
       currentUserId: null,
       hydrated: true,
     });
@@ -542,6 +645,54 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     for (const task of tasks) {
       upsertTask(set, get, task);
     }
+  },
+
+  moveTask: async (id, input) => {
+    const task = await apiRequest<TaskDto>(`/api/tasks/${id}/position`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
+    upsertTask(set, get, task);
+    return normalizeTasks([task]).tasks[0];
+  },
+
+  updateTaskAssignee: async (id, userId) => {
+    const task = await apiRequest<TaskDto>(`/api/tasks/${id}/assignee`, {
+      method: "PUT",
+      body: JSON.stringify({ userId }),
+    });
+    upsertTask(set, get, task);
+    const collaborators = get().taskCollaborators[id] ?? [];
+    set({
+      taskCollaborators: {
+        ...get().taskCollaborators,
+        [id]: collaborators.map((item) => ({ ...item, isAssignee: item.userId === userId })),
+      },
+    });
+    return normalizeTasks([task]).tasks[0];
+  },
+
+  addTaskComment: async (taskId, content) => {
+    const comment = await apiRequest<TaskComment>(`/api/tasks/${taskId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    });
+    upsertComment(set, get, comment);
+    return comment;
+  },
+
+  updateTaskComment: async (id, content) => {
+    const comment = await apiRequest<TaskComment>(`/api/task-comments/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    });
+    upsertComment(set, get, comment);
+    return comment;
+  },
+
+  deleteTaskComment: async (id) => {
+    await apiRequest(`/api/task-comments/${id}`, { method: "DELETE" });
+    set({ taskComments: get().taskComments.filter((comment) => comment.id !== id) });
   },
 
   deleteTask: async (id) => {
@@ -699,6 +850,13 @@ function normalizeTasks(taskDtos: TaskDto[]) {
   return { tasks, subtasks };
 }
 
+function mergeTasksById(current: Task[], incoming: Task[]) {
+  const incomingById = new Map(incoming.map((task) => [task.id, task]));
+  const merged = current.map((task) => incomingById.get(task.id) ?? task);
+  const currentIds = new Set(current.map((task) => task.id));
+  return [...merged, ...incoming.filter((task) => !currentIds.has(task.id))];
+}
+
 function normalizeShares(shares: TaskShareDto[]) {
   const shareMap = new Map<string, TaskShare>();
   for (const { task: _task, ...share } of shares) {
@@ -781,6 +939,12 @@ async function startStoreRealtime(
       taskShared: (share) => upsertShare(set, get, share as TaskShareDto),
       shareResponded: (share) => upsertShare(set, get, share as TaskShareDto),
       notificationReceived: (notification) => upsertNotification(set, get, notification),
+      commentAdded: (comment) => upsertComment(set, get, comment),
+      commentUpdated: (comment) => upsertComment(set, get, comment),
+      commentDeleted: (commentId) =>
+        set({ taskComments: get().taskComments.filter((comment) => comment.id !== commentId) }),
+      assigneeChanged: (task) => upsertTask(set, get, toTaskDto(task)),
+      activityAdded: (activity) => upsertActivity(set, get, activity),
     });
     await syncRealtimeTaskGroups(get().tasks.map((task) => task.id));
   } catch {
@@ -798,10 +962,10 @@ function buildTaskQueryString(query?: TaskListQuery) {
     pageSize: String(query?.pageSize ?? 100),
   });
   const sortBy = query?.sortBy ?? "sortOrder";
-  if (sortBy !== "sortOrder") {
-    params.set("sortBy", sortBy);
-  }
-  params.set("sortDir", sortBy === "createdAt" ? "desc" : "asc");
+  params.set("sortBy", sortBy);
+  params.set("sortDir", query?.sortDir ?? (sortBy === "createdAt" ? "desc" : "asc"));
+  params.set("scope", query?.scope ?? "accessible");
+  params.set("assignee", query?.assignee ?? "all");
 
   if (query?.categoryId && query.categoryId !== "all") {
     params.set("categoryId", query.categoryId);
@@ -819,6 +983,28 @@ function buildTaskQueryString(query?: TaskListQuery) {
   return params.toString();
 }
 
+function mergeById<T extends { id: string }>(current: T[], incoming: T[]) {
+  const byId = new Map(current.map((item) => [item.id, item]));
+  incoming.forEach((item) => byId.set(item.id, item));
+  return [...byId.values()];
+}
+
+function upsertComment(
+  set: (partial: Partial<TodoState>) => void,
+  get: () => TodoState,
+  comment: TaskComment,
+) {
+  set({ taskComments: mergeById(get().taskComments, [comment]) });
+}
+
+function upsertActivity(
+  set: (partial: Partial<TodoState>) => void,
+  get: () => TodoState,
+  activity: TaskActivity,
+) {
+  set({ taskActivities: mergeById(get().taskActivities, [activity]) });
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -830,8 +1016,5 @@ function isGoogleAuthPopupMessage(value: unknown): value is GoogleAuthPopupMessa
   if (typeof value !== "object" || value === null) return false;
 
   const message = value as { source?: unknown; success?: unknown };
-  return (
-    message.source === GOOGLE_AUTH_MESSAGE_SOURCE &&
-    typeof message.success === "boolean"
-  );
+  return message.source === GOOGLE_AUTH_MESSAGE_SOURCE && typeof message.success === "boolean";
 }

@@ -25,4 +25,7 @@ public class User
     public ICollection<TaskShare> OwnedTaskShares { get; set; } = new List<TaskShare>();
     public ICollection<TaskShare> ReceivedTaskShares { get; set; } = new List<TaskShare>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+    public ICollection<TodoTask> AssignedTasks { get; set; } = new List<TodoTask>();
+    public ICollection<TaskComment> TaskComments { get; set; } = new List<TaskComment>();
+    public ICollection<TaskActivity> TaskActivities { get; set; } = new List<TaskActivity>();
 }

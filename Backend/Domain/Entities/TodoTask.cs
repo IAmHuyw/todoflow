@@ -6,6 +6,7 @@ public class TodoTask
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid UserId { get; set; }
+    public Guid? AssigneeId { get; set; }
     public Guid? CategoryId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -22,10 +23,13 @@ public class TodoTask
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public User User { get; set; } = null!;
+    public User? Assignee { get; set; }
     public Category? Category { get; set; }
     public ICollection<SubTask> SubTasks { get; set; } = new List<SubTask>();
     public ICollection<TaskTag> TaskTags { get; set; } = new List<TaskTag>();
     public ICollection<TaskShare> Shares { get; set; } = new List<TaskShare>();
     public ICollection<TaskReminder> Reminders { get; set; } = new List<TaskReminder>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+    public ICollection<TaskComment> Comments { get; set; } = new List<TaskComment>();
+    public ICollection<TaskActivity> Activities { get; set; } = new List<TaskActivity>();
 }

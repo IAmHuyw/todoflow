@@ -12,4 +12,9 @@ public interface IRealtimeNotifier
     Task TaskSharedAsync(TaskShareDto share, CancellationToken cancellationToken = default);
     Task ShareRespondedAsync(TaskShareDto share, CancellationToken cancellationToken = default);
     Task NotificationReceivedAsync(NotificationDto notification, CancellationToken cancellationToken = default);
+    Task CommentAddedAsync(Guid taskId, TaskCommentDto comment, CancellationToken cancellationToken = default);
+    Task CommentUpdatedAsync(Guid taskId, TaskCommentDto comment, CancellationToken cancellationToken = default);
+    Task CommentDeletedAsync(Guid taskId, Guid commentId, CancellationToken cancellationToken = default);
+    Task AssigneeChangedAsync(Guid taskId, TaskDto task, CancellationToken cancellationToken = default);
+    Task ActivityAddedAsync(Guid taskId, TaskActivityDto activity, CancellationToken cancellationToken = default);
 }

@@ -18,6 +18,8 @@ public static class DependencyInjection
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<ITaskShareService, TaskShareService>();
+        services.AddScoped<ITaskCommentService, TaskCommentService>();
+        services.AddScoped<ITaskActivityService, TaskActivityService>();
         services.AddScoped<ISubTaskService, SubTaskService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IReminderService, ReminderService>();

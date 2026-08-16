@@ -14,8 +14,10 @@ public class TaskService : ITaskService
     private readonly IValidator<UpdateTaskRequest> _updateValidator;
     private readonly IValidator<UpdateTaskStatusRequest> _statusValidator;
     private readonly IValidator<ReorderTasksRequest> _reorderValidator;
+    private readonly IValidator<MoveTaskRequest> _moveValidator;
     private readonly IRealtimeNotifier _notifier;
     private readonly INotificationService? _notificationService;
+    private readonly ITaskActivityService _activityService;
 
     public TaskService(
         IUnitOfWork unitOfWork,
@@ -23,16 +25,20 @@ public class TaskService : ITaskService
         IValidator<UpdateTaskRequest> updateValidator,
         IValidator<UpdateTaskStatusRequest> statusValidator,
         IValidator<ReorderTasksRequest> reorderValidator,
+        IValidator<MoveTaskRequest> moveValidator,
         IRealtimeNotifier? notifier = null,
-        INotificationService? notificationService = null)
+        INotificationService? notificationService = null,
+        ITaskActivityService? activityService = null)
     {
         _unitOfWork = unitOfWork;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _statusValidator = statusValidator;
         _reorderValidator = reorderValidator;
+        _moveValidator = moveValidator;
         _notifier = notifier ?? new NoopRealtimeNotifier();
         _notificationService = notificationService;
+        _activityService = activityService ?? new TaskActivityService(unitOfWork);
     }
 
     public Task<PagedResult<TaskDto>> GetAllAsync(
@@ -45,7 +51,12 @@ public class TaskService : ITaskService
         var priority = EnumParser.ParsePriority(query.Priority);
         var status = EnumParser.ParseStatus(query.Status);
 
-        var tasks = _unitOfWork.Tasks.QueryAccessibleForUser(userId, includeDetails: true);
+        var tasks = NormalizeScope(query.Scope) switch
+        {
+            "owned" => _unitOfWork.Tasks.QueryForUser(userId, includeDetails: true),
+            "accessible" => _unitOfWork.Tasks.QueryAccessibleForUser(userId, includeDetails: true),
+            _ => throw new AppException("Giá trị scope không hợp lệ.", 400)
+        };
 
         if (query.CategoryId.HasValue)
         {
@@ -69,6 +80,14 @@ public class TaskService : ITaskService
                 task.Title.ToLower().Contains(search) ||
                 (task.Description != null && task.Description.ToLower().Contains(search)));
         }
+
+        tasks = NormalizeAssignee(query.Assignee) switch
+        {
+            "all" => tasks,
+            "me" => tasks.Where(task => task.AssigneeId == userId),
+            "unassigned" => tasks.Where(task => task.AssigneeId == null),
+            _ => throw new AppException("Giá trị assignee không hợp lệ.", 400)
+        };
 
         tasks = ApplySort(tasks, query.SortBy, query.SortDir);
 
@@ -126,7 +145,15 @@ public class TaskService : ITaskService
         };
 
         await _unitOfWork.Tasks.AddAsync(task, cancellationToken);
+        var activity = await _activityService.RecordAsync(
+            task.Id,
+            userId,
+            TaskActivityType.TaskCreated,
+            "đã tạo công việc",
+            cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await PublishActivityAsync(activity, cancellationToken);
 
         return DtoMapper.ToDto(task);
     }
@@ -147,6 +174,7 @@ public class TaskService : ITaskService
         EnsureCategoryBelongsToUser(task.UserId, request.CategoryId);
         EnsureTagsBelongToUser(task.UserId, request.TagIds);
 
+        var previousStatus = task.Status;
         task.CategoryId = request.CategoryId;
         task.Title = request.Title.Trim();
         task.Description = string.IsNullOrWhiteSpace(request.Description)
@@ -166,9 +194,30 @@ public class TaskService : ITaskService
             task.TaskTags.Add(new TaskTag { TaskId = task.Id, TagId = tagId });
         }
 
+        var activity = await _activityService.RecordAsync(
+            task.Id,
+            userId,
+            TaskActivityType.TaskUpdated,
+            "đã cập nhật công việc",
+            cancellationToken);
+        TaskActivity? statusActivity = null;
+        if (previousStatus != task.Status)
+        {
+            statusActivity = await _activityService.RecordAsync(
+                task.Id,
+                userId,
+                TaskActivityType.StatusChanged,
+                $"đã đổi trạng thái từ {previousStatus} thành {task.Status}",
+                cancellationToken);
+        }
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         var dto = DtoMapper.ToDto(task);
         await _notifier.TaskUpdatedAsync(task.Id, dto, cancellationToken);
+        await PublishActivityAsync(activity, cancellationToken);
+        if (statusActivity is not null)
+        {
+            await PublishActivityAsync(statusActivity, cancellationToken);
+        }
         await NotifyTaskWatchersAsync(userId, task, NotificationType.TaskUpdated, $"Công việc đã được cập nhật: {task.Title}", cancellationToken);
         return dto;
     }
@@ -211,10 +260,17 @@ public class TaskService : ITaskService
             }
         }
 
+        var activity = await _activityService.RecordAsync(
+            task.Id,
+            userId,
+            TaskActivityType.StatusChanged,
+            $"đã đổi trạng thái từ {previousStatus} thành {request.Status}",
+            cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         var dto = DtoMapper.ToDto(task);
         await _notifier.TaskStatusChangedAsync(task.Id, task.Status, cancellationToken);
         await _notifier.TaskUpdatedAsync(task.Id, dto, cancellationToken);
+        await PublishActivityAsync(activity, cancellationToken);
         if (task.Status == TodoStatus.Done)
         {
             await NotifyTaskWatchersAsync(userId, task, NotificationType.TaskCompleted, $"Công việc đã hoàn thành: {task.Title}", cancellationToken);
@@ -266,6 +322,216 @@ public class TaskService : ITaskService
         return dtos;
     }
 
+    public async Task<TaskDto> MoveAsync(
+        Guid userId,
+        Guid id,
+        MoveTaskRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        await _moveValidator.EnsureValidAsync(request, cancellationToken);
+
+        var movedTask = await _unitOfWork.Tasks.GetForUserAsync(
+                userId,
+                id,
+                includeDetails: true,
+                cancellationToken: cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy công việc hoặc công việc không thuộc về bạn.");
+
+        if (request.AnchorTaskId == id)
+        {
+            throw new AppException("Công việc làm mốc phải khác công việc đang di chuyển.", 400);
+        }
+
+        TodoTask? anchorTask = null;
+        if (request.AnchorTaskId.HasValue)
+        {
+            anchorTask = await _unitOfWork.Tasks.GetForUserAsync(
+                    userId,
+                    request.AnchorTaskId.Value,
+                    cancellationToken: cancellationToken)
+                ?? throw new NotFoundException("Không tìm thấy công việc làm mốc hoặc công việc đó không thuộc về bạn.");
+
+            if (anchorTask.Status != request.Status)
+            {
+                throw new AppException("Công việc làm mốc không nằm trong cột đích.", 400);
+            }
+        }
+
+        var previousStatus = movedTask.Status;
+        var sourceTasks = previousStatus == request.Status
+            ? null
+            : _unitOfWork.Tasks.QueryForUser(userId)
+                .Where(task => task.Status == previousStatus && task.Id != id)
+                .OrderBy(task => task.SortOrder)
+                .ThenBy(task => task.CreatedAt)
+                .ToList();
+
+        var targetTasks = _unitOfWork.Tasks.QueryForUser(userId)
+            .Where(task => task.Status == request.Status && task.Id != id)
+            .OrderBy(task => task.SortOrder)
+            .ThenBy(task => task.CreatedAt)
+            .ToList();
+
+        var insertIndex = targetTasks.Count;
+        if (anchorTask is not null)
+        {
+            var anchorIndex = targetTasks.FindIndex(task => task.Id == anchorTask.Id);
+            if (anchorIndex < 0)
+            {
+                throw new AppException("Công việc làm mốc không nằm trong cột đích.", 400);
+            }
+
+            insertIndex = string.Equals(request.Placement.Trim(), "before", StringComparison.OrdinalIgnoreCase)
+                ? anchorIndex
+                : anchorIndex + 1;
+        }
+
+        movedTask.Status = request.Status;
+        movedTask.UpdatedAt = DateTime.UtcNow;
+        targetTasks.Insert(insertIndex, movedTask);
+
+        Reindex(sourceTasks);
+        Reindex(targetTasks);
+        TaskActivity? activity = null;
+        if (previousStatus != movedTask.Status)
+        {
+            activity = await _activityService.RecordAsync(
+                movedTask.Id,
+                userId,
+                TaskActivityType.StatusChanged,
+                $"đã đổi trạng thái từ {previousStatus} thành {movedTask.Status}",
+                cancellationToken);
+        }
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var dto = DtoMapper.ToDto(movedTask);
+        if (previousStatus != movedTask.Status)
+        {
+            await _notifier.TaskStatusChangedAsync(movedTask.Id, movedTask.Status, cancellationToken);
+        }
+        await _notifier.TaskUpdatedAsync(movedTask.Id, dto, cancellationToken);
+        if (activity is not null)
+        {
+            await PublishActivityAsync(activity, cancellationToken);
+        }
+        return dto;
+    }
+
+    public async Task<TaskDto> UpdateAssigneeAsync(
+        Guid userId,
+        Guid id,
+        UpdateTaskAssigneeRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var task = await _unitOfWork.Tasks.GetForUserAsync(
+                userId,
+                id,
+                includeDetails: true,
+                cancellationToken: cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy công việc hoặc bạn không phải chủ sở hữu.");
+
+        User? assignee = null;
+        if (request.UserId.HasValue)
+        {
+            assignee = _unitOfWork.Users.Query()
+                .FirstOrDefault(candidate => candidate.Id == request.UserId.Value && candidate.IsActive)
+                ?? throw new AppException("Người phụ trách không tồn tại hoặc tài khoản đã bị khóa.", 400);
+
+            var canBeAssigned = assignee.Id == task.UserId || task.Shares.Any(share =>
+                share.SharedWithUserId == assignee.Id &&
+                share.Status == ShareStatus.Accepted &&
+                share.Permission == SharePermission.Edit);
+            if (!canBeAssigned)
+            {
+                throw new AppException("Chỉ có thể giao việc cho chủ sở hữu hoặc cộng tác viên có quyền chỉnh sửa.", 400);
+            }
+        }
+
+        if (task.AssigneeId == request.UserId)
+        {
+            return DtoMapper.ToDto(task);
+        }
+
+        task.AssigneeId = assignee?.Id;
+        task.Assignee = assignee;
+        task.UpdatedAt = DateTime.UtcNow;
+        var displayName = assignee is null
+            ? null
+            : string.IsNullOrWhiteSpace(assignee.FullName) ? assignee.Username : assignee.FullName;
+        var activity = await _activityService.RecordAsync(
+            task.Id,
+            userId,
+            TaskActivityType.AssigneeChanged,
+            assignee is null ? "đã bỏ người phụ trách" : $"đã giao công việc cho {displayName}",
+            cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var dto = DtoMapper.ToDto(task);
+        await _notifier.AssigneeChangedAsync(task.Id, dto, cancellationToken);
+        await _notifier.TaskUpdatedAsync(task.Id, dto, cancellationToken);
+        await PublishActivityAsync(activity, cancellationToken);
+        if (assignee is not null && assignee.Id != userId && _notificationService is not null)
+        {
+            await _notificationService.CreateAsync(
+                assignee.Id,
+                task.Id,
+                NotificationType.TaskAssigned,
+                $"Bạn được giao phụ trách công việc: {task.Title}",
+                cancellationToken);
+        }
+
+        return dto;
+    }
+
+    public async Task<IReadOnlyList<TaskCollaboratorDto>> GetCollaboratorsAsync(
+        Guid userId,
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var task = await _unitOfWork.Tasks.GetAccessibleForUserAsync(
+                userId,
+                id,
+                includeDetails: true,
+                cancellationToken: cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy công việc.");
+        var collaboratorIds = task.Shares
+            .Where(share => share.Status == ShareStatus.Accepted)
+            .Select(share => share.SharedWithUserId)
+            .Append(task.UserId)
+            .Distinct()
+            .ToArray();
+        var users = _unitOfWork.Users.Query()
+            .Where(candidate => collaboratorIds.Contains(candidate.Id) && candidate.IsActive)
+            .ToDictionary(candidate => candidate.Id);
+        var collaborators = new List<TaskCollaboratorDto>();
+        if (users.TryGetValue(task.UserId, out var owner))
+        {
+            collaborators.Add(new TaskCollaboratorDto(
+                owner.Id,
+                owner.Username,
+                owner.FullName,
+                SharePermission.Edit,
+                true,
+                task.AssigneeId == owner.Id));
+        }
+
+        collaborators.AddRange(task.Shares
+            .Where(share => share.Status == ShareStatus.Accepted && users.ContainsKey(share.SharedWithUserId))
+            .Select(share =>
+            {
+                var collaborator = users[share.SharedWithUserId];
+                return new TaskCollaboratorDto(
+                    collaborator.Id,
+                    collaborator.Username,
+                    collaborator.FullName,
+                    share.Permission,
+                    false,
+                    task.AssigneeId == collaborator.Id);
+            })
+            .OrderBy(item => item.FullName ?? item.Username));
+        return collaborators;
+    }
+
     private static IQueryable<TodoTask> ApplySort(
         IQueryable<TodoTask> query,
         string? sortBy,
@@ -302,6 +568,31 @@ public class TaskService : ITaskService
             .Replace("_", string.Empty, StringComparison.Ordinal)
             .Replace("-", string.Empty, StringComparison.Ordinal)
             .ToLowerInvariant();
+
+    private static string NormalizeScope(string? scope) =>
+        string.IsNullOrWhiteSpace(scope) ? "accessible" : scope.Trim().ToLowerInvariant();
+
+    private static string NormalizeAssignee(string? assignee) =>
+        string.IsNullOrWhiteSpace(assignee) ? "all" : assignee.Trim().ToLowerInvariant();
+
+    private async Task PublishActivityAsync(TaskActivity activity, CancellationToken cancellationToken)
+    {
+        var dto = await _activityService.ToDtoAsync(activity, cancellationToken);
+        await _notifier.ActivityAddedAsync(activity.TaskId, dto, cancellationToken);
+    }
+
+    private static void Reindex(IReadOnlyList<TodoTask>? tasks)
+    {
+        if (tasks is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < tasks.Count; index++)
+        {
+            tasks[index].SortOrder = index;
+        }
+    }
 
     private int GetNextSortOrder(Guid userId, TodoStatus status)
     {

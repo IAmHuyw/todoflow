@@ -22,6 +22,8 @@ public class AppDbContext : DbContext
     public DbSet<TaskShare> TaskShares => Set<TaskShare>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<TaskReminder> TaskReminders => Set<TaskReminder>();
+    public DbSet<TaskComment> TaskComments => Set<TaskComment>();
+    public DbSet<TaskActivity> TaskActivities => Set<TaskActivity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -98,6 +100,10 @@ public class AppDbContext : DbContext
                 .WithMany(user => user.Tasks)
                 .HasForeignKey(task => task.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(task => task.Assignee)
+                .WithMany(user => user.AssignedTasks)
+                .HasForeignKey(task => task.AssigneeId)
+                .OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(task => task.Category)
                 .WithMany(category => category.Tasks)
                 .HasForeignKey(task => task.CategoryId)
@@ -106,6 +112,7 @@ public class AppDbContext : DbContext
             entity.HasIndex(task => new { task.UserId, task.Status, task.SortOrder });
             entity.HasIndex(task => new { task.UserId, task.Priority });
             entity.HasIndex(task => new { task.UserId, task.DueDate });
+            entity.HasIndex(task => new { task.AssigneeId, task.Status, task.DueDate });
         });
 
         modelBuilder.Entity<SubTask>(entity =>
@@ -195,6 +202,41 @@ public class AppDbContext : DbContext
                 .WithMany(task => task.Reminders)
                 .HasForeignKey(reminder => reminder.TaskId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TaskComment>(entity =>
+        {
+            entity.ToTable("TaskComments");
+            entity.HasKey(comment => comment.Id);
+            entity.Property(comment => comment.Content).HasMaxLength(2000).IsRequired();
+            entity.HasQueryFilter(comment => !comment.IsDeleted && !comment.Task.IsDeleted);
+            entity.HasIndex(comment => new { comment.TaskId, comment.CreatedAt });
+            entity.HasOne(comment => comment.Task)
+                .WithMany(task => task.Comments)
+                .HasForeignKey(comment => comment.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(comment => comment.Author)
+                .WithMany(user => user.TaskComments)
+                .HasForeignKey(comment => comment.AuthorId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<TaskActivity>(entity =>
+        {
+            entity.ToTable("TaskActivities");
+            entity.HasKey(activity => activity.Id);
+            entity.Property(activity => activity.Type).HasConversion<int>();
+            entity.Property(activity => activity.Message).HasMaxLength(500).IsRequired();
+            entity.HasQueryFilter(activity => !activity.Task.IsDeleted);
+            entity.HasIndex(activity => new { activity.TaskId, activity.CreatedAt });
+            entity.HasOne(activity => activity.Task)
+                .WithMany(task => task.Activities)
+                .HasForeignKey(activity => activity.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(activity => activity.ActorUser)
+                .WithMany(user => user.TaskActivities)
+                .HasForeignKey(activity => activity.ActorUserId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
     }
 }

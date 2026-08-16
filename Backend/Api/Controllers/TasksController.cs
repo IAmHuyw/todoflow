@@ -14,17 +14,23 @@ public class TasksController : ApiControllerBase
     private readonly ISubTaskService _subTaskService;
     private readonly ITaskShareService _taskShareService;
     private readonly IReminderService _reminderService;
+    private readonly ITaskCommentService _taskCommentService;
+    private readonly ITaskActivityService _taskActivityService;
 
     public TasksController(
         ITaskService taskService,
         ISubTaskService subTaskService,
         ITaskShareService taskShareService,
-        IReminderService reminderService)
+        IReminderService reminderService,
+        ITaskCommentService taskCommentService,
+        ITaskActivityService taskActivityService)
     {
         _taskService = taskService;
         _subTaskService = subTaskService;
         _taskShareService = taskShareService;
         _reminderService = reminderService;
+        _taskCommentService = taskCommentService;
+        _taskActivityService = taskActivityService;
     }
 
     // Lists tasks for the current user with optional filters, sorting and paging.
@@ -94,6 +100,65 @@ public class TasksController : ApiControllerBase
     {
         var task = await _taskService.UpdateStatusAsync(CurrentUserId, id, request, cancellationToken);
         return OkResponse(task, "Đã cập nhật trạng thái công việc.");
+    }
+
+    [HttpPut("{id:guid}/position")]
+    public async Task<ActionResult<ApiResponse<TaskDto>>> Move(
+        Guid id,
+        MoveTaskRequest request,
+        CancellationToken cancellationToken)
+    {
+        var task = await _taskService.MoveAsync(CurrentUserId, id, request, cancellationToken);
+        return OkResponse(task, "Đã cập nhật vị trí công việc.");
+    }
+
+    [HttpPut("{id:guid}/assignee")]
+    public async Task<ActionResult<ApiResponse<TaskDto>>> UpdateAssignee(
+        Guid id,
+        UpdateTaskAssigneeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var task = await _taskService.UpdateAssigneeAsync(CurrentUserId, id, request, cancellationToken);
+        return OkResponse(task, "Đã cập nhật người phụ trách.");
+    }
+
+    [HttpGet("{id:guid}/collaborators")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<TaskCollaboratorDto>>>> GetCollaborators(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var collaborators = await _taskService.GetCollaboratorsAsync(CurrentUserId, id, cancellationToken);
+        return OkResponse(collaborators);
+    }
+
+    [HttpGet("{id:guid}/comments")]
+    public async Task<ActionResult<ApiResponse<PagedResult<TaskCommentDto>>>> GetComments(
+        Guid id,
+        [FromQuery] TaskCommentQueryParameters query,
+        CancellationToken cancellationToken)
+    {
+        var comments = await _taskCommentService.GetAllAsync(CurrentUserId, id, query, cancellationToken);
+        return OkResponse(comments);
+    }
+
+    [HttpPost("{id:guid}/comments")]
+    public async Task<ActionResult<ApiResponse<TaskCommentDto>>> CreateComment(
+        Guid id,
+        CreateTaskCommentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var comment = await _taskCommentService.CreateAsync(CurrentUserId, id, request, cancellationToken);
+        return OkResponse(comment, "Đã thêm bình luận.");
+    }
+
+    [HttpGet("{id:guid}/activities")]
+    public async Task<ActionResult<ApiResponse<PagedResult<TaskActivityDto>>>> GetActivities(
+        Guid id,
+        [FromQuery] TaskActivityQueryParameters query,
+        CancellationToken cancellationToken)
+    {
+        var activities = await _taskActivityService.GetAllAsync(CurrentUserId, id, query, cancellationToken);
+        return OkResponse(activities);
     }
 
     [HttpPut("reorder")]

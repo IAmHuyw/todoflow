@@ -26,4 +26,19 @@ public class NoopRealtimeNotifier : IRealtimeNotifier
 
     public Task NotificationReceivedAsync(NotificationDto notification, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
+
+    public Task CommentAddedAsync(Guid taskId, TaskCommentDto comment, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    public Task CommentUpdatedAsync(Guid taskId, TaskCommentDto comment, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    public Task CommentDeletedAsync(Guid taskId, Guid commentId, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    public Task AssigneeChangedAsync(Guid taskId, TaskDto task, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    public Task ActivityAddedAsync(Guid taskId, TaskActivityDto activity, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
 }

@@ -411,6 +411,232 @@ public class ServiceTests
     }
 
     [Fact]
+    public async Task Task_query_owned_scope_excludes_tasks_shared_with_current_user()
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var ownerId = await SeedUserAsync(dbContext);
+        var ownedTask = new TodoTask { UserId = userId, Title = "Công việc của tôi" };
+        var sharedTask = new TodoTask { UserId = ownerId, Title = "Công việc được chia sẻ" };
+        sharedTask.Shares.Add(new TaskShare
+        {
+            TaskId = sharedTask.Id,
+            OwnerId = ownerId,
+            SharedWithUserId = userId,
+            Permission = SharePermission.View,
+            Status = ShareStatus.Accepted
+        });
+        dbContext.Tasks.AddRange(ownedTask, sharedTask);
+        await dbContext.SaveChangesAsync();
+        var taskService = CreateTaskService(dbContext);
+
+        var accessible = await taskService.GetAllAsync(userId, new TaskQueryParameters
+        {
+            Scope = "accessible",
+            PageSize = 10
+        });
+        var owned = await taskService.GetAllAsync(userId, new TaskQueryParameters
+        {
+            Scope = "owned",
+            PageSize = 10
+        });
+
+        Assert.Equal(2, accessible.TotalCount);
+        Assert.Single(owned.Items);
+        Assert.Equal(ownedTask.Id, owned.Items[0].Id);
+        Assert.Equal(1, owned.TotalCount);
+    }
+
+    [Fact]
+    public async Task Task_query_pages_each_status_and_preserves_sort_order()
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var createdAt = DateTime.UtcNow.AddDays(-2);
+        dbContext.Tasks.AddRange(Enumerable.Range(0, 35).Select(index => new TodoTask
+        {
+            UserId = userId,
+            Title = $"Công việc {index:00}",
+            Status = TodoStatus.Todo,
+            SortOrder = index,
+            CreatedAt = createdAt.AddMinutes(index),
+            UpdatedAt = createdAt.AddMinutes(index)
+        }));
+        dbContext.Tasks.Add(new TodoTask
+        {
+            UserId = userId,
+            Title = "Đang làm",
+            Status = TodoStatus.InProgress
+        });
+        await dbContext.SaveChangesAsync();
+        var taskService = CreateTaskService(dbContext);
+
+        var secondPage = await taskService.GetAllAsync(userId, new TaskQueryParameters
+        {
+            Scope = "owned",
+            Status = "todo",
+            SortBy = "sortOrder",
+            SortDir = "asc",
+            Page = 2,
+            PageSize = 30
+        });
+
+        Assert.Equal(35, secondPage.TotalCount);
+        Assert.Equal(2, secondPage.TotalPages);
+        Assert.Equal(5, secondPage.Items.Count);
+        Assert.Equal(30, secondPage.Items[0].SortOrder);
+        Assert.All(secondPage.Items, task => Assert.Equal(TodoStatus.Todo, task.Status));
+    }
+
+    [Fact]
+    public async Task Task_query_sorts_by_created_date_due_date_and_priority()
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var now = DateTime.UtcNow;
+        dbContext.Tasks.AddRange(
+            new TodoTask
+            {
+                UserId = userId,
+                Title = "Cũ - ưu tiên thấp",
+                Priority = Priority.Low,
+                DueDate = now.AddDays(3),
+                CreatedAt = now.AddDays(-3)
+            },
+            new TodoTask
+            {
+                UserId = userId,
+                Title = "Mới - ưu tiên cao",
+                Priority = Priority.High,
+                DueDate = now.AddDays(2),
+                CreatedAt = now.AddDays(-1)
+            },
+            new TodoTask
+            {
+                UserId = userId,
+                Title = "Giữa - ưu tiên trung bình",
+                Priority = Priority.Medium,
+                DueDate = now.AddDays(1),
+                CreatedAt = now.AddDays(-2)
+            });
+        await dbContext.SaveChangesAsync();
+        var taskService = CreateTaskService(dbContext);
+
+        var newest = await taskService.GetAllAsync(userId, new TaskQueryParameters
+        {
+            Scope = "owned",
+            SortBy = "createdAt",
+            SortDir = "desc"
+        });
+        var dueSoonest = await taskService.GetAllAsync(userId, new TaskQueryParameters
+        {
+            Scope = "owned",
+            SortBy = "dueDate",
+            SortDir = "asc"
+        });
+        var highestPriority = await taskService.GetAllAsync(userId, new TaskQueryParameters
+        {
+            Scope = "owned",
+            SortBy = "priority",
+            SortDir = "asc"
+        });
+
+        Assert.Equal("Mới - ưu tiên cao", newest.Items[0].Title);
+        Assert.Equal("Giữa - ưu tiên trung bình", dueSoonest.Items[0].Title);
+        Assert.Equal("Mới - ưu tiên cao", highestPriority.Items[0].Title);
+    }
+
+    [Fact]
+    public async Task Task_move_reorders_within_and_between_columns()
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var first = new TodoTask { UserId = userId, Title = "A", Status = TodoStatus.Todo, SortOrder = 0 };
+        var second = new TodoTask { UserId = userId, Title = "B", Status = TodoStatus.Todo, SortOrder = 1 };
+        var third = new TodoTask { UserId = userId, Title = "C", Status = TodoStatus.Todo, SortOrder = 2 };
+        var progressFirst = new TodoTask { UserId = userId, Title = "P1", Status = TodoStatus.InProgress, SortOrder = 0 };
+        var progressSecond = new TodoTask { UserId = userId, Title = "P2", Status = TodoStatus.InProgress, SortOrder = 1 };
+        dbContext.Tasks.AddRange(first, second, third, progressFirst, progressSecond);
+        await dbContext.SaveChangesAsync();
+        var taskService = CreateTaskService(dbContext);
+
+        await taskService.MoveAsync(userId, first.Id, new MoveTaskRequest
+        {
+            Status = TodoStatus.Todo,
+            AnchorTaskId = second.Id,
+            Placement = "after"
+        });
+        await taskService.MoveAsync(userId, third.Id, new MoveTaskRequest
+        {
+            Status = TodoStatus.InProgress,
+            AnchorTaskId = progressSecond.Id,
+            Placement = "before"
+        });
+        await taskService.MoveAsync(userId, progressFirst.Id, new MoveTaskRequest
+        {
+            Status = TodoStatus.InProgress,
+            AnchorTaskId = null,
+            Placement = "after"
+        });
+
+        var todoIds = await dbContext.Tasks
+            .Where(task => task.UserId == userId && task.Status == TodoStatus.Todo)
+            .OrderBy(task => task.SortOrder)
+            .Select(task => task.Id)
+            .ToArrayAsync();
+        var progressIds = await dbContext.Tasks
+            .Where(task => task.UserId == userId && task.Status == TodoStatus.InProgress)
+            .OrderBy(task => task.SortOrder)
+            .Select(task => task.Id)
+            .ToArrayAsync();
+
+        Assert.Equal([second.Id, first.Id], todoIds);
+        Assert.Equal([third.Id, progressSecond.Id, progressFirst.Id], progressIds);
+    }
+
+    [Fact]
+    public async Task Task_move_rejects_invalid_anchor_and_non_owned_task()
+    {
+        await using var dbContext = CreateDbContext();
+        var userId = await SeedUserAsync(dbContext);
+        var otherUserId = await SeedUserAsync(dbContext);
+        var task = new TodoTask { UserId = userId, Title = "Task", Status = TodoStatus.Todo };
+        var wrongColumnAnchor = new TodoTask
+        {
+            UserId = userId,
+            Title = "Sai cột",
+            Status = TodoStatus.InProgress
+        };
+        var otherOwnerAnchor = new TodoTask
+        {
+            UserId = otherUserId,
+            Title = "Sai chủ sở hữu",
+            Status = TodoStatus.Todo
+        };
+        dbContext.Tasks.AddRange(task, wrongColumnAnchor, otherOwnerAnchor);
+        await dbContext.SaveChangesAsync();
+        var taskService = CreateTaskService(dbContext);
+
+        var wrongColumn = await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            taskService.MoveAsync(userId, task.Id, new MoveTaskRequest
+            {
+                Status = TodoStatus.Todo,
+                AnchorTaskId = wrongColumnAnchor.Id,
+                Placement = "before"
+            }));
+        var wrongOwner = await Assert.ThrowsAsync<Application.Common.NotFoundException>(() =>
+            taskService.MoveAsync(userId, task.Id, new MoveTaskRequest
+            {
+                Status = TodoStatus.Todo,
+                AnchorTaskId = otherOwnerAnchor.Id,
+                Placement = "after"
+            }));
+
+        Assert.Equal(400, wrongColumn.StatusCode);
+        Assert.Equal(404, wrongOwner.StatusCode);
+    }
+
+    [Fact]
     public async Task Category_delete_nulls_category_on_existing_tasks()
     {
         await using var dbContext = CreateDbContext();
@@ -507,6 +733,194 @@ public class ServiceTests
         Assert.True(await dbContext.Notifications.AnyAsync(item => item.Id == otherUserNotification.Id));
     }
 
+    [Fact]
+    public async Task Task_assignment_only_accepts_owner_or_accepted_editor()
+    {
+        await using var dbContext = CreateDbContext();
+        var ownerId = await SeedUserAsync(dbContext);
+        var editorId = await SeedUserAsync(dbContext);
+        var viewerId = await SeedUserAsync(dbContext);
+        var outsiderId = await SeedUserAsync(dbContext);
+        var task = new TodoTask { UserId = ownerId, Title = "Cộng tác" };
+        task.Shares.Add(new TaskShare
+        {
+            TaskId = task.Id,
+            OwnerId = ownerId,
+            SharedWithUserId = editorId,
+            Permission = SharePermission.Edit,
+            Status = ShareStatus.Accepted
+        });
+        task.Shares.Add(new TaskShare
+        {
+            TaskId = task.Id,
+            OwnerId = ownerId,
+            SharedWithUserId = viewerId,
+            Permission = SharePermission.View,
+            Status = ShareStatus.Accepted
+        });
+        dbContext.Tasks.Add(task);
+        await dbContext.SaveChangesAsync();
+        var service = CreateTaskService(dbContext);
+
+        var assigned = await service.UpdateAssigneeAsync(
+            ownerId,
+            task.Id,
+            new UpdateTaskAssigneeRequest { UserId = editorId });
+        var assignedPage = await service.GetAllAsync(editorId, new TaskQueryParameters
+        {
+            Scope = "accessible",
+            Assignee = "me"
+        });
+
+        Assert.Equal(editorId, assigned.AssigneeId);
+        Assert.Single(assignedPage.Items);
+        await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            service.UpdateAssigneeAsync(ownerId, task.Id, new UpdateTaskAssigneeRequest { UserId = viewerId }));
+        await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            service.UpdateAssigneeAsync(ownerId, task.Id, new UpdateTaskAssigneeRequest { UserId = outsiderId }));
+        await Assert.ThrowsAsync<Application.Common.NotFoundException>(() =>
+            service.UpdateAssigneeAsync(editorId, task.Id, new UpdateTaskAssigneeRequest { UserId = editorId }));
+    }
+
+    [Fact]
+    public async Task Share_permission_downgrade_clears_current_assignee()
+    {
+        await using var dbContext = CreateDbContext();
+        var ownerId = await SeedUserAsync(dbContext);
+        var editorId = await SeedUserAsync(dbContext);
+        var task = new TodoTask { UserId = ownerId, Title = "Công việc nhóm" };
+        var share = new TaskShare
+        {
+            TaskId = task.Id,
+            OwnerId = ownerId,
+            SharedWithUserId = editorId,
+            Permission = SharePermission.Edit,
+            Status = ShareStatus.Accepted
+        };
+        task.Shares.Add(share);
+        dbContext.Tasks.Add(task);
+        await dbContext.SaveChangesAsync();
+        var notifier = new NoopRealtimeNotifier();
+        var unitOfWork = new UnitOfWork(dbContext);
+        var activityService = new TaskActivityService(unitOfWork);
+        var notificationService = new NotificationService(unitOfWork, notifier);
+        var taskService = CreateTaskService(dbContext, notifier, notificationService, activityService);
+        var shareService = new TaskShareService(unitOfWork, notifier, notificationService, activityService);
+        await taskService.UpdateAssigneeAsync(
+            ownerId,
+            task.Id,
+            new UpdateTaskAssigneeRequest { UserId = editorId });
+
+        await shareService.ChangePermissionAsync(
+            ownerId,
+            share.Id,
+            new ChangeSharePermissionRequest { Permission = SharePermission.View });
+
+        Assert.Null((await dbContext.Tasks.FindAsync(task.Id))!.AssigneeId);
+    }
+
+    [Fact]
+    public async Task Task_comments_enforce_access_and_create_notifications_and_activity()
+    {
+        await using var dbContext = CreateDbContext();
+        var ownerId = await SeedUserAsync(dbContext);
+        var viewerId = await SeedUserAsync(dbContext);
+        var editorId = await SeedUserAsync(dbContext);
+        var outsiderId = await SeedUserAsync(dbContext);
+        var task = new TodoTask { UserId = ownerId, Title = "Trao đổi" };
+        task.Shares.Add(new TaskShare
+        {
+            TaskId = task.Id,
+            OwnerId = ownerId,
+            SharedWithUserId = viewerId,
+            Permission = SharePermission.View,
+            Status = ShareStatus.Accepted
+        });
+        task.Shares.Add(new TaskShare
+        {
+            TaskId = task.Id,
+            OwnerId = ownerId,
+            SharedWithUserId = editorId,
+            Permission = SharePermission.Edit,
+            Status = ShareStatus.Accepted
+        });
+        dbContext.Tasks.Add(task);
+        await dbContext.SaveChangesAsync();
+        var unitOfWork = new UnitOfWork(dbContext);
+        var notifier = new NoopRealtimeNotifier();
+        var activityService = new TaskActivityService(unitOfWork);
+        var notificationService = new NotificationService(unitOfWork, notifier);
+        var commentService = new TaskCommentService(
+            unitOfWork,
+            new CreateTaskCommentRequestValidator(),
+            new UpdateTaskCommentRequestValidator(),
+            activityService,
+            notifier,
+            notificationService);
+
+        var comment = await commentService.CreateAsync(viewerId, task.Id, new CreateTaskCommentRequest
+        {
+            Content = "@testuser Mình đã xem công việc."
+        });
+
+        Assert.Equal(2, await dbContext.Notifications.CountAsync());
+        Assert.Single(await dbContext.TaskActivities.ToArrayAsync());
+        await Assert.ThrowsAsync<Application.Common.NotFoundException>(() =>
+            commentService.GetAllAsync(outsiderId, task.Id, new TaskCommentQueryParameters()));
+        await Assert.ThrowsAsync<Application.Common.AppException>(() =>
+            commentService.DeleteAsync(editorId, comment.Id));
+
+        await commentService.DeleteAsync(ownerId, comment.Id);
+
+        Assert.True((await dbContext.TaskComments.IgnoreQueryFilters().SingleAsync()).IsDeleted);
+        Assert.Equal(2, await dbContext.TaskActivities.CountAsync());
+    }
+
+    [Fact]
+    public async Task Task_activity_is_paged_newest_first_for_collaborators()
+    {
+        await using var dbContext = CreateDbContext();
+        var ownerId = await SeedUserAsync(dbContext);
+        var viewerId = await SeedUserAsync(dbContext);
+        var task = new TodoTask { UserId = ownerId, Title = "Nhật ký" };
+        task.Shares.Add(new TaskShare
+        {
+            TaskId = task.Id,
+            OwnerId = ownerId,
+            SharedWithUserId = viewerId,
+            Permission = SharePermission.View,
+            Status = ShareStatus.Accepted
+        });
+        dbContext.Tasks.Add(task);
+        dbContext.TaskActivities.AddRange(
+            new TaskActivity
+            {
+                TaskId = task.Id,
+                ActorUserId = ownerId,
+                Type = TaskActivityType.TaskCreated,
+                Message = "cũ",
+                CreatedAt = DateTime.UtcNow.AddMinutes(-2)
+            },
+            new TaskActivity
+            {
+                TaskId = task.Id,
+                ActorUserId = ownerId,
+                Type = TaskActivityType.TaskUpdated,
+                Message = "mới",
+                CreatedAt = DateTime.UtcNow
+            });
+        await dbContext.SaveChangesAsync();
+
+        var page = await new TaskActivityService(new UnitOfWork(dbContext)).GetAllAsync(
+            viewerId,
+            task.Id,
+            new TaskActivityQueryParameters { Page = 1, PageSize = 1 });
+
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal(2, page.TotalPages);
+        Assert.Equal("mới", page.Items[0].Message);
+    }
+
     private static AppDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -533,13 +947,21 @@ public class ServiceTests
     private static CategoryService CreateCategoryService(AppDbContext dbContext) =>
         new(new UnitOfWork(dbContext), new CreateCategoryRequestValidator(), new UpdateCategoryRequestValidator());
 
-    private static TaskService CreateTaskService(AppDbContext dbContext) =>
+    private static TaskService CreateTaskService(
+        AppDbContext dbContext,
+        IRealtimeNotifier? notifier = null,
+        INotificationService? notificationService = null,
+        ITaskActivityService? activityService = null) =>
         new(
             new UnitOfWork(dbContext),
             new CreateTaskRequestValidator(),
             new UpdateTaskRequestValidator(),
             new UpdateTaskStatusRequestValidator(),
-            new ReorderTasksRequestValidator());
+            new ReorderTasksRequestValidator(),
+            new MoveTaskRequestValidator(),
+            notifier,
+            notificationService,
+            activityService);
 
     private static SubTaskService CreateSubTaskService(AppDbContext dbContext) =>
         new(new UnitOfWork(dbContext), new CreateSubTaskRequestValidator(), new UpdateSubTaskRequestValidator());

@@ -58,7 +58,25 @@ public interface ITaskService
     Task<TaskDto> UpdateAsync(Guid userId, Guid id, UpdateTaskRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
     Task<TaskDto> UpdateStatusAsync(Guid userId, Guid id, UpdateTaskStatusRequest request, CancellationToken cancellationToken = default);
+    Task<TaskDto> MoveAsync(Guid userId, Guid id, MoveTaskRequest request, CancellationToken cancellationToken = default);
+    Task<TaskDto> UpdateAssigneeAsync(Guid userId, Guid id, UpdateTaskAssigneeRequest request, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TaskCollaboratorDto>> GetCollaboratorsAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TaskDto>> ReorderAsync(Guid userId, ReorderTasksRequest request, CancellationToken cancellationToken = default);
+}
+
+public interface ITaskCommentService
+{
+    Task<PagedResult<TaskCommentDto>> GetAllAsync(Guid userId, Guid taskId, TaskCommentQueryParameters query, CancellationToken cancellationToken = default);
+    Task<TaskCommentDto> CreateAsync(Guid userId, Guid taskId, CreateTaskCommentRequest request, CancellationToken cancellationToken = default);
+    Task<TaskCommentDto> UpdateAsync(Guid userId, Guid id, UpdateTaskCommentRequest request, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface ITaskActivityService
+{
+    Task<PagedResult<TaskActivityDto>> GetAllAsync(Guid userId, Guid taskId, TaskActivityQueryParameters query, CancellationToken cancellationToken = default);
+    Task<Domain.Entities.TaskActivity> RecordAsync(Guid taskId, Guid? actorUserId, Domain.Enums.TaskActivityType type, string message, CancellationToken cancellationToken = default);
+    Task<TaskActivityDto> ToDtoAsync(Domain.Entities.TaskActivity activity, CancellationToken cancellationToken = default);
 }
 
 public interface ITaskShareService

@@ -12,6 +12,8 @@ import {
   Bell,
   ChevronDown,
   ChevronRight,
+  UserRound,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +33,16 @@ import { TaskDialog } from "./TaskDialog";
 import { ShareDialog } from "./ShareDialog";
 import { ReminderDialog } from "./ReminderDialog";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const priorityColor: Record<Priority, string> = {
   low: "bg-slate-100 text-slate-700 border-slate-200",
@@ -57,21 +69,38 @@ const recurrenceLabel = {
   monthly: "Lặp tháng",
 };
 
-export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean }) {
+export interface TaskChange {
+  type: "updated" | "status" | "deleted";
+  previousStatus: Status;
+  nextStatus?: Status;
+}
+
+export function TaskCard({
+  task,
+  isShared,
+  onTaskChange,
+}: {
+  task: Task;
+  isShared?: boolean;
+  onTaskChange?: (change: TaskChange) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [reminding, setReminding] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [newSub, setNewSub] = useState("");
   const [newSubNote, setNewSubNote] = useState("");
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [editingSubNote, setEditingSubNote] = useState("");
+  const taskDetailUrl = `/tasks/${task.id}`;
 
-  const category = useTodoStore((s) =>
-    s.categories.find((c) => c.id === task.categoryId),
-  );
+  const category = useTodoStore((s) => s.categories.find((c) => c.id === task.categoryId));
   const allTags = useTodoStore((s) => s.tags);
   const allSubtasks = useTodoStore((s) => s.subtasks);
+  const currentUserId = useTodoStore((s) => s.currentUserId);
+  const shares = useTodoStore((s) => s.shares);
   const setStatus = useTodoStore((s) => s.setTaskStatus);
   const deleteTask = useTodoStore((s) => s.deleteTask);
   const addSubtask = useTodoStore((s) => s.addSubtask);
@@ -80,6 +109,16 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
   const deleteSubtask = useTodoStore((s) => s.deleteSubtask);
 
   const done = task.status === "done";
+  const owner = task.userId === currentUserId;
+  const canEdit =
+    owner ||
+    shares.some(
+      (share) =>
+        share.taskId === task.id &&
+        share.sharedWithUserId === currentUserId &&
+        share.status === "accepted" &&
+        share.permission === "edit",
+    );
   const tags = useMemo(
     () => allTags.filter((t) => task.tagIds.includes(t.id)),
     [allTags, task.tagIds],
@@ -90,12 +129,32 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
   );
   const subDone = subs.filter((s) => s.isCompleted).length;
 
-  const runAction = async (action: Promise<void>, fallback: string) => {
+  const runAction = async (action: Promise<void>, fallback: string, change?: TaskChange) => {
     try {
       await action;
+      if (change) onTaskChange?.(change);
+      return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : fallback);
+      return false;
     }
+  };
+
+  const changeStatus = (status: Status) =>
+    runAction(setStatus(task.id, status), "Không đổi được trạng thái công việc", {
+      type: "status",
+      previousStatus: task.status,
+      nextStatus: status,
+    });
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    const deleted = await runAction(deleteTask(task.id), "Không xoá được công việc", {
+      type: "deleted",
+      previousStatus: task.status,
+    });
+    setDeleting(false);
+    if (deleted) setConfirmingDelete(false);
   };
 
   const dueBadge = useMemo(() => {
@@ -130,84 +189,72 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
       >
         <div className="flex items-start gap-3">
           <Checkbox
+            disabled={!canEdit}
             checked={done}
-            onCheckedChange={(v) =>
-              void runAction(
-                setStatus(task.id, v === true ? "done" : "todo"),
-                "Không đổi được trạng thái công việc",
-              )
-            }
+            onCheckedChange={(v) => void changeStatus(v === true ? "done" : "todo")}
             className="mt-1"
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <button
-                onClick={() => setEditing(true)}
+              <a
+                href={taskDetailUrl}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
                 className={cn(
                   "text-left text-sm font-medium leading-tight text-foreground hover:text-primary",
                   done && "line-through text-muted-foreground",
                 )}
               >
                 {task.title}
-              </button>
-              <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setReminding(true)}
-                  title="Nhắc nhở"
-                >
-                  <Bell className="h-3.5 w-3.5" />
-                </Button>
-                {!isShared && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setSharing(true)}
-                    title="Chia sẻ"
-                  >
-                    <Share2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+              </a>
+              <div className="flex items-center opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:focus-within:opacity-100">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label="Mở menu công việc"
+                      title="Thao tác công việc"
+                    >
                       <MoreHorizontal className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setEditing(true)}>
+                    <DropdownMenuItem onSelect={() => window.location.assign(taskDetailUrl)}>
+                      <Eye className="mr-2 h-3.5 w-3.5" />
+                      Xem chi tiết
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!canEdit} onClick={() => setEditing(true)}>
+                      <Pencil className="mr-2 h-3.5 w-3.5" />
                       Chỉnh sửa
                     </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!canEdit} onClick={() => setReminding(true)}>
+                      <Bell className="mr-2 h-3.5 w-3.5" />
+                      Nhắc nhở
+                    </DropdownMenuItem>
+                    {!isShared && (
+                      <DropdownMenuItem onClick={() => setSharing(true)}>
+                        <Share2 className="mr-2 h-3.5 w-3.5" />
+                        Chia sẻ
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() =>
-                        void runAction(
-                          setStatus(task.id, "todo"),
-                          "Không đổi được trạng thái công việc",
-                        )
-                      }
+                      disabled={!canEdit || task.status === "todo"}
+                      onClick={() => void changeStatus("todo")}
                     >
                       Đánh dấu: Cần làm
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() =>
-                        void runAction(
-                          setStatus(task.id, "in_progress"),
-                          "Không đổi được trạng thái công việc",
-                        )
-                      }
+                      disabled={!canEdit || task.status === "in_progress"}
+                      onClick={() => void changeStatus("in_progress")}
                     >
                       Đánh dấu: Đang làm
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() =>
-                        void runAction(
-                          setStatus(task.id, "done"),
-                          "Không đổi được trạng thái công việc",
-                        )
-                      }
+                      disabled={!canEdit || task.status === "done"}
+                      onClick={() => void changeStatus("done")}
                     >
                       Đánh dấu: Xong
                     </DropdownMenuItem>
@@ -216,9 +263,7 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-red-600 focus:text-red-600"
-                          onClick={() =>
-                            void runAction(deleteTask(task.id), "Không xoá được công việc")
-                          }
+                          onClick={() => setConfirmingDelete(true)}
                         >
                           <Trash2 className="mr-2 h-3.5 w-3.5" />
                           Xoá
@@ -231,9 +276,7 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
             </div>
 
             {task.description && (
-              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                {task.description}
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{task.description}</p>
             )}
 
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -265,6 +308,14 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                 {statusLabel[task.status]}
               </Badge>
               {dueBadge}
+              {task.assigneeId && (
+                <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-cyan-200 bg-cyan-50 px-1.5 py-0.5 text-xs text-cyan-800">
+                  <UserRound className="h-3 w-3 shrink-0" />
+                  <span className="truncate">
+                    {task.assigneeFullName || task.assigneeUsername || "Người phụ trách"}
+                  </span>
+                </span>
+              )}
               {task.recurrenceType !== "none" && (
                 <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">
                   <Repeat className="h-3 w-3" />
@@ -291,17 +342,15 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
               )}
             </div>
 
-            {(expanded || (subs.length === 0 && !isShared)) && (
+            {(expanded || (subs.length === 0 && canEdit)) && (
               <div className="mt-3 space-y-1.5 border-t border-border pt-3">
                 {subs.map((s) => (
                   <div key={s.id} className="group/sub flex items-start gap-2">
                     <Checkbox
+                      disabled={!canEdit}
                       checked={s.isCompleted}
                       onCheckedChange={() =>
-                        void runAction(
-                          toggleSubtask(s.id),
-                          "Không cập nhật được việc con",
-                        )
+                        void runAction(toggleSubtask(s.id), "Không cập nhật được việc con")
                       }
                       className="mt-0.5"
                     />
@@ -353,7 +402,7 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                         )
                       )}
                     </div>
-                    {editingSubId !== s.id && (
+                    {canEdit && editingSubId !== s.id && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -367,19 +416,21 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
                         <Pencil className="h-3 w-3" />
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover/sub:opacity-100"
-                      onClick={() =>
-                        void runAction(deleteSubtask(s.id), "Không xoá được việc con")
-                      }
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover/sub:opacity-100"
+                        onClick={() =>
+                          void runAction(deleteSubtask(s.id), "Không xoá được việc con")
+                        }
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 ))}
-                {!isShared && (
+                {canEdit && (
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -423,12 +474,47 @@ export function TaskCard({ task, isShared }: { task: Task; isShared?: boolean })
 
       <TaskDialog
         open={editing}
-        onOpenChange={setEditing}
+        onOpenChange={(open) => {
+          setEditing(open);
+          if (!open && editing) {
+            const nextStatus = useTodoStore
+              .getState()
+              .tasks.find((currentTask) => currentTask.id === task.id)?.status;
+            onTaskChange?.({
+              type: "updated",
+              previousStatus: task.status,
+              nextStatus,
+            });
+          }
+        }}
         task={task}
-        readOnly={isShared}
+        readOnly={!canEdit}
       />
       <ShareDialog open={sharing} onOpenChange={setSharing} taskId={task.id} />
       <ReminderDialog open={reminding} onOpenChange={setReminding} taskId={task.id} />
+      <AlertDialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa công việc này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Công việc “{task.title}” và các việc con liên quan sẽ không còn xuất hiện trên bảng.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDelete();
+              }}
+            >
+              {deleting ? "Đang xóa..." : "Xóa công việc"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

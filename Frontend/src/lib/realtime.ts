@@ -6,6 +6,8 @@ import type {
   Status,
   SubTask,
   Task,
+  TaskActivity,
+  TaskComment,
   TaskShare,
 } from "./todo-types";
 
@@ -16,6 +18,11 @@ interface RealtimeHandlers {
   taskShared: (share: TaskShare) => void;
   shareResponded: (share: TaskShare) => void;
   notificationReceived: (notification: Notification) => void;
+  commentAdded: (comment: TaskComment) => void;
+  commentUpdated: (comment: TaskComment) => void;
+  commentDeleted: (commentId: string) => void;
+  assigneeChanged: (task: Task & { subTasks?: SubTask[] }) => void;
+  activityAdded: (activity: TaskActivity) => void;
 }
 
 let connection: signalR.HubConnection | null = null;
@@ -45,6 +52,13 @@ export async function startRealtime(handlers: RealtimeHandlers) {
     handlers.shareResponded(share),
   );
   connection.on("NotificationReceived", handlers.notificationReceived);
+  connection.on("CommentAdded", handlers.commentAdded);
+  connection.on("CommentUpdated", handlers.commentUpdated);
+  connection.on("CommentDeleted", (payload: { taskId: string; commentId: string }) =>
+    handlers.commentDeleted(payload.commentId),
+  );
+  connection.on("AssigneeChanged", handlers.assigneeChanged);
+  connection.on("ActivityAdded", handlers.activityAdded);
 
   connection.onreconnected(async () => {
     const taskIds = [...joinedTaskIds];
@@ -69,13 +83,9 @@ export async function syncRealtimeTaskGroups(taskIds: string[]) {
   const leaving = [...joinedTaskIds].filter((taskId) => !next.has(taskId));
   const joining = [...next].filter((taskId) => !joinedTaskIds.has(taskId));
 
-  await Promise.allSettled(
-    leaving.map((taskId) => connection?.invoke("LeaveTaskGroup", taskId)),
-  );
+  await Promise.allSettled(leaving.map((taskId) => connection?.invoke("LeaveTaskGroup", taskId)));
   leaving.forEach((taskId) => joinedTaskIds.delete(taskId));
 
-  await Promise.allSettled(
-    joining.map((taskId) => connection?.invoke("JoinTaskGroup", taskId)),
-  );
+  await Promise.allSettled(joining.map((taskId) => connection?.invoke("JoinTaskGroup", taskId)));
   joining.forEach((taskId) => joinedTaskIds.add(taskId));
 }

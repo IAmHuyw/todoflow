@@ -55,5 +55,6 @@ public class TaskRepository : Repository<TodoTask>, ITaskRepository
             .AsSplitQuery()
             .Include(task => task.SubTasks)
             .Include(task => task.TaskTags)
-            .Include(task => task.Shares);
+            .Include(task => task.Shares)
+            .Include(task => task.Assignee);
 }

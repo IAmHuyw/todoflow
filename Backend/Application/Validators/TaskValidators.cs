@@ -63,3 +63,16 @@ public class ReorderTasksRequestValidator : AbstractValidator<ReorderTasksReques
             .WithMessage("Danh sách công việc không được trùng lặp.");
     }
 }
+
+public class MoveTaskRequestValidator : AbstractValidator<MoveTaskRequest>
+{
+    public MoveTaskRequestValidator()
+    {
+        RuleFor(x => x.Status)
+            .IsInEnum().WithMessage("Trạng thái công việc không hợp lệ.");
+        RuleFor(x => x.Placement)
+            .Must(value => string.Equals(value?.Trim(), "before", StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(value?.Trim(), "after", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Vị trí công việc phải là before hoặc after.");
+    }
+}

@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   LogOut,
   ShieldCheck,
+  UserCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +31,7 @@ import { useNavigate } from "@tanstack/react-router";
 const items = [
   { title: "Tổng quan", url: "/dashboard", icon: LayoutDashboard },
   { title: "Công việc", url: "/tasks", icon: ListTodo },
+  { title: "Được giao cho tôi", url: "/assigned", icon: UserCheck },
   { title: "Danh mục", url: "/categories", icon: FolderKanban },
   { title: "Nhãn", url: "/tags", icon: TagIcon },
   { title: "Chia sẻ", url: "/shared", icon: Users },
@@ -84,7 +86,9 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navigationItems.map((item) => {
-                const active = currentPath === item.url;
+                const active =
+                  currentPath === item.url ||
+                  (item.url === "/tasks" && currentPath.startsWith("/tasks/"));
                 const badge = badgeFor(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
